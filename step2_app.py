@@ -1,87 +1,150 @@
+import sys
+import os
 import requests
+from dotenv import load_dotenv
 
-# ==========================================
-# 1. ตั้งค่า API และ ข้อความต้นแบบ (Exemplar)
-# ==========================================
-# 🔴 นำ API Key ของ Typhoon มาใส่ตรงนี้
-API_KEY = "sk-mCs6zOZIVX6BfKj141jr9hz2Y64HxTeltNOiv9s2EvQKPifF"
-URL = "https://api.opentyphoon.ai/v1/chat/completions" 
+sys.stdout.reconfigure(encoding="utf-8")
 
-# 🔴 นำข้อความจาก Step 1 (Wangchan ThaiInstruct) มาวางระหว่าง """ ... """
-EXEMPLAR_TEXT = """
-แคมเปญ "The ONGR 1" เป็นการนำเสนอภารกิจสุดสนุก ผ่านตัวละครเอเจนท์
-ตัวละครเอเจนท์พูดภาษาถิ่น สร้างความแปลกใหม่ น่าสนใจ ดึงดูดความสนใจลูกค้า
+# โหลด API Key จาก .env
+load_dotenv()
+
+SYSTEM_PROMPT = """
+คุณคือ "ผู้เชี่ยวชาญด้านการสื่อสารองค์กร"
+มีหน้าที่เปลี่ยนข้อมูลและคีย์เวิร์ดสั้น ๆ ของผู้ใช้
+ให้เป็นเอกสารทางการภาษาไทยที่สุภาพและเหมาะสม
+
+กฎ:
+1. ต้องใช้ข้อมูลของผู้ใช้ให้ครบถ้วน
+2. ต้องมีชื่อผู้รับและตำแหน่งผู้รับ
+3. ต้องมีวันที่
+4. ต้องมีชื่อผู้เขียนและตำแหน่งผู้เขียน
+5. ปรับภาษาพูดหรือคีย์เวิร์ดให้เป็นภาษาทางการ
+6. ห้ามสร้างข้อมูลส่วนตัวที่ผู้ใช้ไม่ได้ระบุขึ้นมาเอง
+7. หากข้อมูลบางอย่างไม่มี ให้ใช้ [กรุณาระบุ...]
+8. เอกสารต้องมี:
+   - วันที่
+   - คำขึ้นต้น
+   - ชื่อผู้รับ
+   - ตำแหน่งผู้รับ
+   - เนื้อหาหลัก
+   - คำลงท้าย
+   - ชื่อผู้เขียน
+   - ตำแหน่งผู้เขียน
+9. สร้างเฉพาะเอกสาร ห้ามอธิบายเพิ่มเติม
 """
 
-# ==========================================
-# 2. สร้าง System Prompt (ใช้ทฤษฎี Register Analysis)
-# ==========================================
-SYSTEM_PROMPT = f"""คุณคือผู้เชี่ยวชาญด้านการร่างเอกสารทางการและจดหมายธุรกิจ
-หน้าที่ของคุณคือร่างเอกสารใหม่จากข้อมูลที่ผู้ใช้ระบุ โดยต้องปฏิบัติตามกฎต่อไปนี้อย่างเคร่งครัด:
+def main():
 
-1. การวิเคราะห์ระดับภาษา (Register Analysis): คุณต้องใช้คำศัพท์ โครงสร้างประโยค และระดับความทางการ (Formality) ให้เทียบเท่ากับ "ข้อความต้นแบบ" ด้านล่างนี้
-2. ห้ามแต่งเติมเนื้อหา (No Hallucination): ใช้เฉพาะข้อมูลที่ผู้ใช้ให้มาเท่านั้น ห้ามคิดชื่อคน วันที่ หรือสถานที่ขึ้นมาเอง หากข้อมูลไม่พอให้เว้นช่องว่างไว้ เช่น [ระบุวันที่]
-3. ความสละสลวย: เปลี่ยนภาษาพูดให้เป็นภาษาเขียนทางการทั้งหมด
+    print("=" * 60)
+    print("🤖 AI Formal Document Drafter")
+    print("=" * 60)
 
-[ข้อความต้นแบบ (Style Exemplar)]
-{EXEMPLAR_TEXT}
+    # API Key
+    api_key = os.getenv("TYPHOON_API_KEY")
+
+    if not api_key:
+        print("\n❌ ไม่พบ TYPHOON_API_KEY")
+        print("กรุณาตรวจสอบไฟล์ .env")
+        return
+
+    print("\n📋 กรุณากรอกข้อมูลเอกสาร")
+    print("-" * 60)
+
+    # ข้อมูลผู้เขียน
+    author_name = input("👤 ชื่อผู้เขียน: ")
+    author_position = input("💼 ตำแหน่งผู้เขียน: ")
+
+    # วันที่
+    date = input("📅 วันที่: ")
+
+    # ข้อมูลผู้รับ
+    receiver_name = input("👨‍💼 ชื่อผู้รับ: ")
+    receiver_position = input("🏢 ตำแหน่งผู้รับ: ")
+
+    # คีย์เวิร์ด
+    keywords = input(
+        "📝 คีย์เวิร์ด เช่น ลาป่วย, ท้องเสีย, 2 วัน: "
+    )
+
+    if not keywords.strip():
+        print("\n❌ กรุณาระบุคีย์เวิร์ด")
+        return
+
+    print("\n⏳ กำลังสร้างเอกสารทางการ...")
+    print("โปรดรอสักครู่\n")
+
+    user_prompt = f"""
+ข้อมูลผู้เขียน:
+ชื่อ: {author_name}
+ตำแหน่ง: {author_position}
+
+วันที่:
+{date}
+
+ข้อมูลผู้รับ:
+ชื่อ: {receiver_name}
+ตำแหน่ง: {receiver_position}
+
+คีย์เวิร์ดของเอกสาร:
+{keywords}
+
+โปรดนำข้อมูลทั้งหมดไปสร้างเป็นเอกสารทางการภาษาไทย
 """
 
-# ==========================================
-# 3. ฟังก์ชันสำหรับเรียกใช้งาน AI
-# ==========================================
-def draft_document(user_input):
+    url = "https://api.opentyphoon.ai/v1/chat/completions"
+
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    
-    data = {
+
+    payload = {
         "model": "typhoon-v2.5-30b-a3b-instruct",
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"ร่างเอกสารจากข้อมูลนี้: {user_input}"}
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": user_prompt
+            }
         ],
-        "temperature": 0.2, # ใช้ 0.2 เพื่อลดการแต่งเรื่องมั่ว (อิงจากเปเปอร์ Wangchan)
-        "max_tokens": 1000
+        "temperature": 0.2,
+        "max_tokens": 800
     }
-    
-    try:
-        response = requests.post(URL, headers=headers, json=data)
-        
-        # ถ้าระบบแจ้ง Error (เช่น 400) จะให้มันแสดงข้อความที่เซิร์ฟเวอร์ตอบกลับมาด้วย
-        if response.status_code != 200:
-            return f"❌ API Error ({response.status_code}): {response.text}"
-            
-        response.raise_for_status()
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
-        
-    except Exception as e:
-        return f"เกิดข้อผิดพลาดในการเชื่อมต่อ: {e}"
 
-# ==========================================
-# 4. ส่วนการโต้ตอบกับผู้ใช้ (User Interface)
-# ==========================================
-def main():
-    print("="*50)
-    print("🤖 ยินดีต้อนรับสู่ระบบ AI Formal Document Drafter")
-    print("="*50)
-    print("พิมพ์คีย์เวิร์ดบ้านๆ เพื่อให้ AI ร่างเอกสารทางการ (พิมพ์ 'exit' เพื่อออก)")
-    
-    while True:
-        user_input = input("\n📝 ใส่คีย์เวิร์ด/เรื่องที่ต้องการร่าง: ")
-        if user_input.lower() == 'exit':
-            print("ลาก่อนครับ!")
-            break
-            
-        print("\n⏳ AI กำลังประมวลผลระดับภาษาและร่างเอกสาร...")
-        drafted_doc = draft_document(user_input)
-        
-        print("-" * 50)
-        print("📄 เอกสารที่ร่างเสร็จแล้ว:\n")
-        print(drafted_doc)
-        print("-" * 50)
+    try:
+
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload
+        )
+
+        if response.status_code == 200:
+
+            data = response.json()
+
+            result = data["choices"][0]["message"]["content"].strip()
+
+            print("=" * 60)
+            print("✨ เอกสารทางการ ✨")
+            print("=" * 60)
+            print()
+            print(result)
+            print()
+            print("=" * 60)
+
+        else:
+
+            print(f"❌ Error Code: {response.status_code}")
+            print(response.text)
+
+    except Exception as e:
+
+        print(f"❌ เกิดข้อผิดพลาด: {str(e)}")
+
 
 if __name__ == "__main__":
     main()
