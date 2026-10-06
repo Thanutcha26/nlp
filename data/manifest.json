@@ -1,0 +1,57 @@
+{
+  "project": "Thai text rewriting prototype",
+  "created_utc": "2026-10-06T11:13:57.564526+00:00",
+  "dataset": {
+    "id": "airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k",
+    "url": "https://huggingface.co/datasets/airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k",
+    "license": "MIT (as stated on the Hugging Face dataset card)",
+    "source_split": "train",
+    "source_rows": 118898,
+    "dataset_fingerprint": "24a35b6a961cfde3",
+    "citation": "Pengpun et al., ACL SRW 2024, https://aclanthology.org/2024.acl-srw.38"
+  },
+  "selection": {
+    "task_type": "summarization",
+    "minimum_rating": 7.0,
+    "target_to_source_character_ratio": [
+      0.65,
+      1.25
+    ],
+    "remove_duplicate_sources": true,
+    "duplicate_key": "SHA-256 of trimmed source context",
+    "source_field": "context",
+    "target_field": "output",
+    "note": "Weakly supervised rewriting pairs; the dataset labels these examples as summarization, not paraphrase or style transfer.",
+    "accepted_rows": 4865,
+    "rejected_rows_by_reason": {
+      "duplicate_source": 1203,
+      "length_ratio_out_of_range": 12550,
+      "not_summarization": 96050,
+      "rating_below_threshold": 4230
+    },
+    "median_target_to_source_character_ratio": 0.8123076923076923
+  },
+  "split": {
+    "seed": 42,
+    "method": "deterministic shuffle, then 80/10/10 train/validation/test",
+    "files": {
+      "test.jsonl": {
+        "rows": 486,
+        "sha256": "287f200bedd2aa47350b2e8b529021b90c0af0d4f6d87fdbd2a85370f42f8853"
+      },
+      "validation.jsonl": {
+        "rows": 486,
+        "sha256": "410d19713fa84d833608db472aefcea9a748d2745861d163c466f84370bbab9e"
+      },
+      "train.jsonl": {
+        "rows": 3893,
+        "sha256": "569edc41e3d4ea80169135173e731ac322b0b8b038c209324472deb74793380c"
+      }
+    }
+  },
+  "known_limitations": [
+    "Targets may summarize, omit details, or introduce unsupported facts; length filtering does not guarantee semantic equivalence.",
+    "The source dataset has no labels for formal, casual, or other Thai style levels.",
+    "The source dataset is synthetic and may contain factual errors or model-generated biases."
+  ]
+}
