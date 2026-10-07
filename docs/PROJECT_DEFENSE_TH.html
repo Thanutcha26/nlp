@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คู่มือเตรียมสอบโครงงาน NLP ภาษาไทย</title>
+<style>
+@page { size: A4; margin: 17mm 17mm 18mm; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #1c2932; font-family: "Leelawadee UI", Tahoma, sans-serif; font-size: 10.3pt; line-height: 1.52; }
+h1,h2,h3,h4 { color: #153c53; line-height: 1.25; break-after: avoid; }
+h1 { font-size: 28pt; margin: 0 0 8mm; }
+h2 { font-size: 17pt; border-bottom: 1px solid #bccbd5; padding-bottom: 2mm; margin: 0 0 4mm; }
+h3 { font-size: 12.5pt; margin: 5mm 0 2mm; }
+h4 { font-size: 10.8pt; margin: 4mm 0 1mm; }
+p { margin: 0 0 2.8mm; }
+ul,ol { margin: 1mm 0 3.5mm; padding-left: 7mm; }
+li { margin: 0 0 1.1mm; }
+code,pre { font-family: Consolas,"Courier New",monospace; color: #173e55; }
+code { font-size: 8.8pt; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 3mm 4mm; background: #f1f5f7; border-left: 2px solid #34718b; font-size: 8.4pt; line-height: 1.4; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 8.8pt; break-inside: avoid; }
+th,td { border: 1px solid #c4d0d8; padding: 1.8mm 2.2mm; vertical-align: top; text-align: left; }
+th { background: #eaf1f5; color: #163d55; }
+.callout { background: #eef6f8; border-left: 3px solid #2c7188; padding: 3mm 4mm; margin: 3mm 0 4mm; break-inside: avoid; }
+.warning { background: #fff5e8; border-left-color: #b66b18; }
+.qa { break-inside: avoid; padding: 0 0 2.6mm; margin: 0 0 3mm; border-bottom: 1px solid #d7e0e5; }
+.q { color: #153c53; font-weight: bold; margin-bottom: 1mm; }
+.answer { margin-left: 3mm; }
+.cover { min-height: 250mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+.cover .tag { color: #39738a; font-weight: bold; margin-bottom: 8mm; }
+.cover .sub { font-size: 14pt; color: #4a5d69; max-width: 150mm; }
+.cover .meta { margin-top: 18mm; padding-top: 4mm; border-top: 1px solid #c5d2da; color: #51616b; font-size: 9.5pt; }
+.section { page-break-before: always; }
+.section.start { page-break-before: auto; }
+.small { font-size: 8.6pt; color: #53616a; }
+a { color: #17617d; text-decoration: none; }
+</style>
+</head>
+<body>
+<section class="cover">
+<div class="tag">THAI NLP · PRE-PROJECT DEFENSE PACK</div>
+<h1>คู่มือเตรียมตอบกรรมการ<br>โครงงาน NLP ภาษาไทย</h1>
+<p class="sub">ที่มา dataset · อัลกอริทึมการเตรียมและฝึก · mT5 baseline · Typhoon2 CLI · ผลทดลอง · คำถามสอบปากเปล่า</p>
+<div class="callout warning"><b>ข้อเท็จจริงหลักที่ต้องตอบให้ตรงกัน:</b> mT5 เป็นโมเดลที่ fine-tune จากคู่ข้อมูล weakly supervised ประเภท summarization; Typhoon2 เป็นโมเดล instruction ภาษาไทยที่ CLI โหลดมาใช้แยกต่างหากและไม่ได้ fine-tune ด้วย dataset นี้ โครงงานยังไม่มี gold paraphrase/style-transfer dataset หรือผล human evaluation</div>
+<div class="meta">เอกสารอิง source code, model/data configs, training report, evaluation report และ model/dataset cards<br>วันที่จัดทำ: 8 ตุลาคม 2026 · สำหรับซ้อมนำเสนอและสอบถามก่อนพรีโปรเจกต์</div>
+</section>
+
+<section class="section start">
+<h2>1. คำตอบสั้นที่ควรจำ</h2>
+<table><tr><th>คำถามพื้นฐาน</th><th>คำตอบสรุป</th></tr>
+<tr><td>ทำโครงงานอะไร</td><td>ต้นแบบทดลองเรียบเรียงข้อความภาษาไทย โดยศึกษาการเตรียมข้อมูล การ fine-tune seq2seq baseline และทดลอง inference ด้วย Thai instruction model พร้อมตรวจ output ความเสี่ยงบางชนิด</td></tr>
+<tr><td>ใช้ dataset อะไร</td><td><code>airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k</code>; ใช้เฉพาะ type=summarization แล้วจับ context→output เป็น weak supervision ไม่ใช่ paraphrase labels</td></tr>
+<tr><td>ฝึกด้วย algorithm/model ใด</td><td>Fine-tune <code>google/mt5-small</code> แบบ supervised seq2seq token cross-entropy; AdamW fused, linear scheduler, 1 epoch</td></tr>
+<tr><td>โมเดลใน CLI คืออะไร</td><td><code>typhoon-ai/llama3.2-typhoon2-3b-instruct</code> 3B Thai instruction model; ไม่ได้ฝึกซ้ำจาก project data</td></tr>
+<tr><td>ผลเป็นอย่างไร</td><td>mT5 test 486 examples ได้ chrF 23.4734, ROUGE-L F1 0.0622 เทียบ synthetic summarization references เท่านั้น; CLI มี smoke test สองตัวอย่าง ไม่ใช่ benchmark</td></tr>
+<tr><td>ข้อจำกัดใหญ่สุด</td><td>dataset ไม่ตรงเป้าหมาย paraphrase/style transfer, อาจเปลี่ยน/ตัด/แต่งข้อเท็จจริง; ไม่มี human-evaluation results</td></tr></table>
+<h3>สคริปต์แนะนำตัวโครงงาน 60–90 วินาที</h3>
+<div class="callout"><p>“โครงงานนี้ศึกษาต้นแบบการเรียบเรียงข้อความภาษาไทย โดยเริ่มจากชุด WangchanX Seed-Free Synthetic Instruct Thai ซึ่งมีตัวอย่างสังเคราะห์หลาย task. ผม/ดิฉันคัดเฉพาะ summarization ที่คะแนนอย่างน้อย 7, source ไม่ซ้ำ และ target มีความยาวใกล้ source ได้ 4,865 คู่ แบ่ง train/validation/test ด้วย seed 42 เป็น 3,893/486/486 แล้ว fine-tune mT5-small แบบ sequence-to-sequence หนึ่ง epoch”</p><p>“อย่างไรก็ตาม dataset นี้ไม่ได้เป็นคู่ paraphrase หรือมี label ระดับภาษาโดยตรง การทดสอบ mT5 พบการวนซ้ำและเปลี่ยนข้อเท็จจริง จึงไม่อ้างว่า mT5 แก้โจทย์สำเร็จ ปัจจุบัน CLI ทดลองใช้ Typhoon2 3B instruction แยกต่างหาก พร้อม heuristic guard ที่ fallback เป็นข้อความเดิมเมื่อพบตัวเลขหรือ marker เสี่ยง ผลที่มีเป็นเพียง smoke tests สองกรณี จึงยังต้องเก็บ Thai paraphrase pairs และทำ human evaluation ก่อนกล่าวอ้างความน่าเชื่อถือ”</p></div>
+<h3>ประโยคปิดที่ช่วยคุมขอบเขต</h3>
+<p>“สิ่งที่โครงงานยืนยันได้คือ pipeline และหลักฐานการฝึก/ประเมิน baseline; สิ่งที่ยังยืนยันไม่ได้คือ paraphrase quality ระดับใช้งานจริง เพราะไม่มี task-aligned gold data และการประเมินโดยมนุษย์”</p>
+</section>
+
+<section class="section">
+<h2>2. วัตถุประสงค์ ขอบเขต และคำถามวิจัย</h2>
+<h3>2.1 เป้าหมายตาม implementation</h3>
+<ul><li>สร้าง pipeline ที่โหลด dataset ภาษาไทยจาก Hugging Face, คัดข้อมูล, split แบบทำซ้ำได้ และเก็บ provenance/hash</li><li>ทดลอง fine-tune mT5-small ด้วย input-output text pairs ที่เตรียมไว้</li><li>ประเมิน mT5 บน held-out test split ด้วย lexical metrics และบันทึก predictions</li><li>มี CLI สำหรับทดลองเรียบเรียงด้วย Thai instruction model และ guard ที่ลดความเสี่ยงบางแบบ</li></ul>
+<h3>2.2 ขอบเขตที่ยังไม่ใช่ข้ออ้างของงาน</h3>
+<ul><li>ไม่ใช่ระบบ paraphrase ที่พิสูจน์ semantic equivalence แล้ว</li><li>ไม่ใช่ระบบ style transfer ที่ train ด้วยระดับ formal/semiformal/casual labels</li><li>CLI ไม่ได้ใช้ weights mT5 ที่ train ในโครงงาน; ใช้ Typhoon2 checkpoint แยก</li><li>ยังไม่มี blind human evaluation, significance test, หรือ benchmark เทียบ baseline หลายตัว</li></ul>
+<h3>2.3 ถ้ากรรมการถาม “สมมติฐานคืออะไร”</h3>
+<p>ตอบอย่างระมัดระวังว่า “สมมติฐานเชิงวิศวกรรมคือ สามารถสร้าง pipeline ตรวจสอบย้อนกลับและ fine-tune multilingual seq2seq model กับ Thai synthetic instruction pairs ได้ ส่วนสมมติฐานว่าคุณภาพ paraphrase ดีขึ้นยังต้องทดสอบด้วย dataset ที่ตรงงานและ human evaluation; หลักฐานปัจจุบันยังไม่พอรับรอง”</p>
+</section>
+
+<section class="section">
+<h2>3. Dataset: ที่มา วิธีสร้าง และการคัด</h2>
+<h3>3.1 Dataset card ระบุอะไร</h3>
+<ul><li>ชื่อ: WangchanX Seed-Free Synthetic Instruct Thai 120k</li><li>Repository: <code>airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k</code></li><li>ภาษา: Thai เป็นหลัก, English รอง; source rows ใน manifest 118,898; ไฟล์รวม 239 MB</li><li>Fields: instruction, context, output, type, context_length, rating, qc_rationale</li><li>ต้นทางสังเคราะห์ด้วย seed-free framework; card ระบุ generation model Qwen2-72B-Instruct และ scoring model Llama 3 70B Instruct</li><li>Task types: conversation 24,865; multiple_choice 23,975; brainstorming 23,844; question_answering 23,366; summarization 22,848</li><li>License ตาม card: MIT; citation paper ACL Student Research Workshop 2024</li></ul>
+<h3>3.2 จุดที่ dataset ไม่ตรงงาน</h3>
+<p>งาน paraphrase ต้องการ input กับ rewritten target ที่ความหมายเดิมคงอยู่เป็นหลัก ส่วน source นี้ task type ที่ใช้ถูก label ว่า summarization: target อาจย่อ/ละรายละเอียด/มีข้อมูลคลาดเคลื่อน จึงเรียกว่า weakly supervised rewriting proxy เท่านั้น ไม่ควรเรียกว่า gold paraphrase dataset</p>
+<h3>3.3 ตัวกรองจาก <code>prepare_data.py</code></h3>
+<table><tr><th>ลำดับ</th><th>เงื่อนไข</th><th>เหตุผล</th></tr>
+<tr><td>1</td><td><code>type == summarization</code></td><td>เหลือ task ที่มี context และ target จาก source documents</td></tr>
+<tr><td>2</td><td>trim แล้ว source/target ไม่ว่าง</td><td>ตัดแถวที่ไม่มีข้อความใช้งาน</td></tr>
+<tr><td>3</td><td><code>rating &gt;= 7.0</code></td><td>ใช้คะแนน QC ที่ source ให้; ไม่ใช่ human label ว่าความหมายตรง</td></tr>
+<tr><td>4</td><td><code>0.65 ≤ len(target)/len(source) ≤ 1.25</code></td><td>กรอง target สั้น/ยาวห่าง source มาก; วัดเป็น Python character length</td></tr>
+<tr><td>5</td><td>SHA-256(source) ยังไม่เคยพบ</td><td>ตัด exact duplicate source หลัง trim ก่อนแบ่ง split</td></tr></table>
+<p>QC rationale มีใน source card แต่ pipeline ไม่ได้นำมาป้อนเป็น target และไม่ใช้ในการประเมินคู่ความหมาย</p>
+<h3>3.4 ตัวเลขคัดข้อมูลที่พูดได้</h3>
+<table><tr><th>ผลการคัด</th><th>แถว</th></tr><tr><td>แหล่งข้อมูล train ที่โหลด</td><td>118,898</td></tr><tr><td>ไม่ใช่ summarization</td><td>96,050</td></tr><tr><td>อัตราความยาวนอกช่วง</td><td>12,550</td></tr><tr><td>rating ต่ำกว่า 7</td><td>4,230</td></tr><tr><td>source ซ้ำ</td><td>1,203</td></tr><tr><td>ผ่านตัวกรอง</td><td>4,865</td></tr></table>
+<p>จำนวน rejected รวม 114,033; 114,033 + 4,865 = 118,898. Median target/source character ratio เท่ากับ 0.8123</p>
+</section>
+
+<section class="section">
+<h2>4. Algorithm: split, training, evaluation</h2>
+<h3>4.1 Deterministic split</h3>
+<pre>records = accepted_pairs.copy()
+random.Random(42).shuffle(records)
+n_test = round(len(records) * 0.10)
+n_val  = round(len(records) * 0.10)
+test       = records[0 : n_test]
+validation = records[n_test : n_test + n_val]
+train      = records[n_test + n_val :]</pre>
+<p>Python round ใช้ round-half-to-even: 4,865 × 0.10 = 486.5 จึง round เป็น 486. ได้ test=486, validation=486 และ train=3,893. Source ซ้ำ exact ถูกตัดก่อน split; near-duplicate เชิงความหมายอาจยังมีได้</p>
+<h3>4.2 Input/target format สำหรับ mT5</h3>
+<pre>input text  = "instruction: " + instruction + "\\ncontext: " + source_text
+target text = target_text
+source token cap = 512
+target token cap = 384</pre>
+<p>Tokenizer แปลง text เป็น token IDs. mT5 encoder อ่าน instruction+context และ decoder ทำนาย target แบบ autoregressive. Labels มาจาก target token IDs; padding/label handling ใช้ DataCollatorForSeq2Seq</p>
+<h3>4.3 Loss และ optimizer</h3>
+<p>Seq2seq supervised fine-tuning ใช้ token-level negative log-likelihood/cross-entropy: <code>L = -Σ log pθ(yₜ | y&lt;ₜ, x)</code> เฉลี่ยบน target tokens ที่ไม่ใช่ padding. Gradient จาก loss ย้อนผ่าน decoder/encoder แล้วอัปเดต weights. Optimizer ใน serialized TrainingArguments ของ run นี้คือ <code>adamw_torch_fused</code>; weight decay 0.01. LR scheduler เป็น linear, warmup_steps=0</p>
+<div class="callout"><b>ถ้าถามว่าทำไมบอก AdamW fused:</b> source code ไม่ได้ส่ง <code>optim=...</code> เข้า Seq2SeqTrainingArguments เอง; ค่านี้อ่านจาก <code>artifacts/checkpoints/checkpoint-487/training_args.bin</code> ของ run ที่บันทึก จึงควรพูดว่า “ค่าที่ run นี้ serialize ไว้” ไม่ใช่ค่าที่ hard-code ใน train.py</div>
+<h3>4.4 mT5 architecture</h3>
+<table><tr><th>ค่าจาก config.json</th><th>ค่า</th><th>ความหมาย</th></tr><tr><td>Architecture</td><td>MT5ForConditionalGeneration</td><td>encoder-decoder สำหรับ text-to-text</td></tr><tr><td>Encoder layers</td><td>8</td><td>เข้ารหัส source tokens</td></tr><tr><td>Decoder layers</td><td>8</td><td>สร้าง target tokens แบบ autoregressive</td></tr><tr><td>d_model</td><td>512</td><td>มิติ hidden representation</td></tr><tr><td>Attention heads</td><td>6</td><td>จำนวน heads ของ attention</td></tr><tr><td>d_ff</td><td>1,024</td><td>มิติ feed-forward sublayer</td></tr><tr><td>Vocabulary</td><td>250,112</td><td>จำนวน token IDs ใน vocabulary</td></tr><tr><td>Dropout</td><td>0.1</td><td>regularization ระหว่าง training</td></tr></table>
+<p>mT5 pretrained เป็น multilingual text-to-text model บน mC4 ซึ่งครอบคลุม 101 ภาษา รวม Thai; model card ระบุว่า pretrained checkpoint ต้อง fine-tune สำหรับ downstream task</p>
+</section>
+
+<section class="section">
+<h2>5. Training setup และผลจริง</h2>
+<table><tr><th>รายการ</th><th>ค่าจาก report/config</th></tr>
+<tr><td>Base model</td><td><code>google/mt5-small</code></td></tr><tr><td>Training rows</td><td>3,893</td></tr><tr><td>Validation rows</td><td>486</td></tr><tr><td>Epochs</td><td>1</td></tr><tr><td>Per-device train batch size</td><td>1</td></tr><tr><td>Gradient accumulation</td><td>8 micro-batches</td></tr><tr><td>Effective batch target</td><td>ประมาณ 8 examples/update เมื่อไม่มี distributed replicas</td></tr><tr><td>Optimizer</td><td>AdamW Torch Fused (อ่านจาก saved training args)</td></tr><tr><td>Learning rate</td><td>2 × 10⁻⁵; linear decay, warmup 0</td></tr><tr><td>Weight decay</td><td>0.01</td></tr><tr><td>Precision flags</td><td>fp16=False, bf16=False</td></tr><tr><td>Logging</td><td>ทุก 25 steps</td></tr><tr><td>Evaluation / checkpoint</td><td>ทุก epoch; เลือก best โดย eval_loss ต่ำสุด; save_total_limit=1</td></tr><tr><td>Seed/data seed</td><td>42</td></tr><tr><td>Steps</td><td>487 optimizer steps, จาก trainer_state</td></tr></table>
+<h3>5.1 loss log ที่ควรอธิบาย</h3>
+<p>Training loss ที่ report รวมอยู่ที่ 7.6032; log ทุก 25 steps ลดจาก 19.9227 (step 25) ไป 4.5088 (step 475) และมีแกว่งขึ้นบ้าง เช่น step 400=4.911. Validation eval_loss ที่ step 487 = 2.18575. อย่าเทียบ train/eval loss โดยตรงโดยไม่อธิบายวิธี aggregate/masking; และ loss ไม่บอก semantic correctness</p>
+<h3>5.2 Device/reproducibility caveat</h3>
+<p>Training report ไม่บันทึกชื่อ device/GPU. Saved args ระบุ fp16/bf16 ปิด. ใน environment ปัจจุบันตรวจ CUDA available=False และ nvidia-smi ใช้ไม่ได้ แต่ข้อมูลนี้ไม่ได้เป็นหลักฐานโดยตรงว่า training run เดิมใช้ CPU หากต้องตอบเรื่อง device ให้เปิด log เต็ม/เครื่องที่ใช้ train ห้ามฟันธงจากไฟล์ report อย่างเดียว</p>
+</section>
+
+<section class="section">
+<h2>6. Evaluation: metrics กับการตีความ</h2>
+<h3>6.1 Algorithm ของ <code>evaluate.py</code></h3>
+<ol><li>อ่าน 486 แถวจาก data/test.jsonl; test ไม่ถูกส่งเข้า train.py</li><li>สร้าง input ด้วย instruction/context; padding/truncate สูงสุด 512 tokens</li><li>batch size 4, max_new_tokens 256, beam size 4, do_sample=False</li><li>decode predictions แล้วจับคู่กับ target_text reference</li><li>คำนวณ corpus chrF กับ SacreBLEU และ mean ROUGE-L F1</li><li>บันทึก metrics ใน evaluation_report.json และทุกคู่ source/reference/prediction ใน predictions.jsonl</li></ol>
+<h3>6.2 ผลที่บันทึก</h3>
+<table><tr><th>Metric</th><th>ค่าจริง</th><th>อธิบาย</th></tr><tr><td>Test examples</td><td>486</td><td>test rows ที่ประเมิน</td></tr><tr><td>chrF</td><td>23.473376874</td><td>ทับซ้อน character n-grams; มีประโยชน์กับภาษาที่แบ่งคำยาก แต่ยังเป็น lexical overlap</td></tr><tr><td>ROUGE-L F1</td><td>0.062205842</td><td>อิง longest common subsequence ระหว่าง prediction/reference; ค่านี้ต่ำมากใน run นี้</td></tr></table>
+<div class="callout warning"><b>วิธีตอบ:</b> “ตัวเลขนี้เป็นผล mT5 เทียบ synthetic summarization references เท่านั้น ไม่ได้วัด paraphrase faithfulness หรือ Typhoon CLI. ROUGE-L ต่ำบอกว่า prediction มี overlap ลำดับข้อความกับ reference น้อยใน setup นี้ ไม่ควรแต่งเหตุผลว่าเป็นเพราะภาษาไทย segmentation อย่างเดียวโดยไม่มี ablation เพิ่ม”</div>
+<h3>6.3 สิ่งที่ต้องมีถ้าจะอ้างคุณภาพ</h3>
+<ul><li>human rating โดยผู้ประเมินอย่างน้อย 2 คน, blind to model/source if practical</li><li>เกณฑ์ 1–5 แยก fluency, meaning preservation, style compliance</li><li>factual drift checklist สำหรับตัวเลข เวลา วันที่ ชื่อ หน่วย การปฏิเสธ</li><li>รายงาน inter-annotator agreement/กรณีไม่เห็นตรงกัน</li><li>benchmark เดียวกันสำหรับ mT5 baseline กับ CLI model, ระบุ model revision และ decoding</li></ul>
+</section>
+
+<section class="section">
+<h2>7. CLI model และ guard</h2>
+<h3>7.1 ทำไมมีสองโมเดล</h3>
+<p>mT5 เป็น encoder-decoder ที่ fine-tune จาก weak summarization pairs; การลอง inference แสดงการเลียน instruction, special tokens และเวลาเปลี่ยน จึงเก็บไว้เป็น baseline ที่มี training/eval evidence. Typhoon2 Llama3.2 3B เป็น instruction model ภาษาไทย pretrained จากผู้พัฒนาโมเดล; smoke tests บนประโยคเวลา/จำนวนงานดีขึ้น จึงเป็นโมเดลที่ app.py โหลดตอน CLI. ไม่ได้ fine-tune Typhoon ด้วย project dataset</p>
+<h3>7.2 Inference decoding</h3>
+<ul><li>Model ID: <code>typhoon-ai/llama3.2-typhoon2-3b-instruct</code>; model card: Thai/English, 3B, Llama 3.2 Community License</li><li>ใช้ tokenizer chat template เพื่อจัด system/user messages ให้เข้ารูปแบบที่โมเดลคาดหวัง</li><li>system prompt สั่งให้รักษาข้อมูลเดิม, ห้ามเพิ่มเวลา/ตัวเลข/ข้อเท็จจริง, ตอบเฉพาะข้อความ</li><li>โหมดส่งชื่อ rewrite/formal/semiformal/concise; generation ใช้ greedy/deterministic setting (do_sample=False), repetition penalty 1.08, no_repeat_ngram_size 4, max_new_tokens default 128</li><li>ตัด prompt tokens ก่อน decode, skip special tokens, ใช้ paragraph แรกเพื่อทิ้งหมายเหตุส่วนท้าย</li></ul>
+<h3>7.3 Guard pseudo-code</h3>
+<pre>candidate = decode(generated_new_tokens).strip().first_paragraph
+if blank or contains_sentinel_or_prompt(candidate): reject
+if len(candidate) &gt; max(2 * len(source), len(source) + 120): reject
+normalize Thai/Arabic digits, commas, and trailing .00
+if ordered_numbers(source) != ordered_numbers(candidate): reject
+if source contains "เที่ยง" but not "เที่ยงคืน": expected source noon as 12
+if protected_terms(source) != protected_terms(candidate): reject
+if rejected: print original source + reason
+else: print candidate</pre>
+<p>คำสำคัญที่ตรวจมี พรุ่งนี้/วันนี้/เมื่อวาน/มะรืน/เที่ยงคืน/บาท/เปอร์เซ็นต์. Guard นี้เป็น heuristic และยังตรวจไม่ครอบคลุมเลขที่เขียนเป็นคำไทย, ชื่อเฉพาะ, หน่วยทุกชนิด, ความหมายเชิงปฏิเสธ หรือข้อเท็จจริงทั่วไป</p>
+<h3>7.4 Smoke test ที่มีจริง</h3>
+<table><tr><th>Input</th><th>CLI output ที่ผ่าน guard</th><th>สรุป</th></tr><tr><td>พรุ่งนี้ระบบจะปิดปรับปรุงตั้งแต่ 10 โมงเช้าถึงเที่ยง</td><td>พรุ่งนี้ ระบบจะปิดตั้งแต่เวลา 10.00 น. ถึงเวลา 12.00 น.</td><td>ค่าเวลาในสองรูปแบบสอดคล้องกัน; เป็น 1 ตัวอย่าง</td></tr><tr><td>บริษัทจะจัดส่งสินค้าภายใน 3 วันทำการหลังยืนยันการชำระเงิน</td><td>บริษัทจะดำเนินการตามคำสั่งซื้อภายในระยะเวลาที่กำหนด โดยจะมีการจัดส่งภายใน 3วันทำการ หลังจากได้รับการยืนยันยอดชำระค่าสินค้า.</td><td>ตัวเลข 3 คงอยู่; สำนวน/รายละเอียดเปลี่ยนได้และยังต้องตรวจโดยคน</td></tr></table>
+<p class="small">ผลสองกรณีนี้เป็น smoke tests ระหว่างพัฒนา ไม่ได้ถูกบันทึกเป็น benchmark report และไม่เพียงพอต่อการสรุปคุณภาพเชิงทั่วไป</p>
+</section>
+
+<section class="section">
+<h2>8. คำถามกรรมการพร้อมแนวตอบ</h2>
+<div class="qa"><p class="q">Q1: โครงงานนี้ทำอะไร และปัญหาคืออะไร?</p><p class="answer">A: ทำ pipeline ทดลองเรียบเรียงข้อความภาษาไทย โดยสนใจ fluency และระดับภาษา แต่จากการตรวจข้อมูลพบว่า dataset ที่กำหนดเป็น instruction/summarization dataset ไม่ใช่ paraphrase corpus จึงวางขอบเขตเป็น baseline + prototype และรายงานข้อจำกัด ไม่อ้างความสำเร็จเกินผล</p></div>
+<div class="qa"><p class="q">Q2: Algorithm ที่ใช้ train คืออะไร?</p><p class="answer">A: Supervised seq2seq fine-tuning. ประกอบ instruction+context เป็น input, output เป็น target, ใช้ token-level cross-entropy, backpropagation และ AdamW fused; scheduler linear. TrainingArguments จาก run จริงบันทึก batch 1, accumulation 8, lr 2e-5, weight decay .01, 1 epoch, seed 42</p></div>
+<div class="qa"><p class="q">Q3: ใช้โมเดลอะไร? mT5 กับ Typhoon ต่างกันอย่างไร?</p><p class="answer">A: mT5-small เป็น encoder-decoder baseline ที่ fine-tune ด้วย dataset ในโครงงานและเป็นตัวสร้าง evaluation report. Typhoon2 Llama3.2 3B Instruct เป็น pretrained Thai instruction model ที่ CLI โหลดเพื่อทดลองใช้งาน; ไม่ได้ fine-tune ด้วย dataset นี้ จึงห้ามนำผล mT5 ไปอ้างเป็นผล Typhoon</p></div>
+<div class="qa"><p class="q">Q4: mT5 ทำงานอย่างไร?</p><p class="answer">A: Encoder อ่าน source/context และสร้าง hidden representations. Decoder สร้าง target ทีละ token โดยมอง token ก่อนหน้าและเข้ารหัส source. ระหว่าง train ใช้ teacher forcing/labels เพื่อคำนวณ cross-entropy; ระหว่าง inference ใช้ generation</p></div>
+<div class="qa"><p class="q">Q5: ทำไมเลือก mT5-small?</p><p class="answer">A: เป็น multilingual text-to-text pretrained model ที่รองรับ Thai และมีขนาดเล็กกว่ารุ่นใหญ่ เหมาะกับ baseline บนทรัพยากรจำกัด แต่ multilingual pretraining ไม่รับรอง downstream paraphrase quality; ต้อง fine-tune กับ task data ตรงโจทย์</p></div>
+<div class="qa"><p class="q">Q6: Dataset มาจากไหน ใครสร้าง?</p><p class="answer">A: Hugging Face dataset โดย AIResearch/VISTEC-depa ชื่อ WangchanX Seed-Free Synthetic Instruct Thai 120k. Dataset card อธิบาย seed-free synthetic framework สร้าง Thai instruction tasks จาก topic/context sources; ระบุ generator Qwen2-72B-Instruct และ scorer Llama 3 70B Instruct. ใช้ 118,898 rows ตาม manifest</p></div>
+<div class="qa"><p class="q">Q7: ทำไมบอกว่า dataset ไม่ใช่ paraphrase ทั้งที่มี source/output?</p><p class="answer">A: มี source/output จริง แต่ label type เป็น summarization. Summary อาจตัดรายละเอียดหรือเติมข้อมูล จึงไม่รับประกัน equivalence. การมีสองข้อความไม่ได้ทำให้เป็น paraphrase pair โดยอัตโนมัติ</p></div>
+<div class="qa"><p class="q">Q8: ทำไมคัดเพียง 4,865 จากเกือบ 119k?</p><p class="answer">A: เลือก summarization (22,848 ก่อนกรอง), rating≥7, source/target ไม่ว่าง, target/source length 0.65–1.25, และตัด source ซ้ำ; เงื่อนไขหลายชั้นทำให้เหลือ 4,865. เกณฑ์ ratio เป็น heuristic ไม่ใช่หลักฐานความหมายตรง</p></div>
+<div class="qa"><p class="q">Q9: ทำไม train/validation/test เป็น 80/10/10?</p><p class="answer">A: train ใช้อัปเดต weights; validation ใช้ดู eval loss/เลือก checkpoint; test เก็บไว้ประเมินหลังฝึกเพื่อลดการปรับโมเดลตาม test. ใช้ seed 42 หลัง dedup เพื่อทำซ้ำได้</p></div>
+<div class="qa"><p class="q">Q10: ป้องกัน data leakage อย่างไร?</p><p class="answer">A: ตัด exact duplicate source จากชุด accepted ทั้งหมดก่อน shuffle/split แล้วจึงแยก splits. Hashes ของ files ถูกบันทึกใน manifest/training report. อย่างไรก็ดี pipeline ไม่ได้ตรวจ near-duplicate เชิงความหมายหรือเอกสารต้นทางเดียวกันแบบ semantic grouping</p></div>
+<div class="qa"><p class="q">Q11: ทำไม epochs แค่หนึ่ง?</p><p class="answer">A: run ที่บันทึกตั้ง 1 epoch และมี 487 optimizer steps; เป็น baseline ภายใต้ทรัพยากรที่มี ไม่ใช่ข้อพิสูจน์ว่าเป็นจำนวน epoch ที่ดีที่สุด. การเลือก epoch ต้องทำ validation comparison/learning curves โดยไม่แตะ test</p></div>
+<div class="qa"><p class="q">Q12: optimizer AdamW คืออะไร? ทำไม fused?</p><p class="answer">A: AdamW ใช้ first/second moments ของ gradient เพื่อปรับ step size พร้อม decoupled weight decay; fused เป็น implementation ที่รวม operations เพื่อลด overhead. ค่า <code>adamw_torch_fused</code> อ่านจาก training_args.bin ของ run นี้; source code ไม่ได้กำหนด explicit optimizer จึงขึ้นกับ Transformers/PyTorch version</p></div>
+<div class="qa"><p class="q">Q13: gradient accumulation 8 หมายถึงอะไร?</p><p class="answer">A: คำนวณ gradient จาก micro-batch ขนาด 1 แปดรอบก่อน optimizer update, ทำให้ effective batch ประมาณ 8 เมื่อใช้ process เดียว ช่วยลด memory ต่อ step แต่ไม่ได้เท่ากับ batch 8 ทุกด้าน เช่น BatchNorm (ซึ่ง architecture นี้ไม่ได้พึ่งเป็นหลัก) และ throughput</p></div>
+<div class="qa"><p class="q">Q14: learning rate scheduler ทำอะไร?</p><p class="answer">A: run นี้ใช้ linear schedule ไม่มี warmup โดยเริ่มใกล้ 2e-5 และลดลงเป็นเส้นตรงไปใกล้ศูนย์ตาม total steps. ใช้ทำให้ updates เล็กลงช่วงท้าย; ดูค่าจริงราย step ได้ใน trainer_state log_history</p></div>
+<div class="qa"><p class="q">Q15: eval_loss ต่ำกว่า train_loss ทำไม?</p><p class="answer">A: report train_loss 7.60 เป็นค่า train metrics ที่ Trainer aggregate ระหว่าง optimization; validation eval_loss 2.1857 วัดหลัง epoch ในโหมด evaluation โดยไม่มี dropout และวิธี aggregate อาจต่างกัน. ความต่างนี้ควรตรวจ semantics ของ Trainer/version และ token masking ก่อนอธิบายว่า generalize ดี; ห้ามสรุปจากตัวเลขอย่างเดียว</p></div>
+<div class="qa"><p class="q">Q16: chrF 23.47 กับ ROUGE-L 0.062 บอกอะไร?</p><p class="answer">A: เป็น lexical-overlap metrics เทียบ mT5 predictions กับ synthetic summarization references บน 486 tests. chrF วัด character n-gram overlap, ROUGE-L อิง longest common subsequence. ROUGE-L ที่ต่ำสะท้อน overlap ต่ำใน setup; ทั้งคู่ไม่วัดความหมาย/ข้อเท็จจริง/style และไม่ใช่ Typhoon score</p></div>
+<div class="qa"><p class="q">Q17: ทำไมไม่ใช้ BLEU หรือ BERTScore?</p><p class="answer">A: implementation ปัจจุบันเลือก chrF กับ ROUGE-L; ไม่ควรกล่าวว่า metrics เหล่านี้เพียงพอ. งานต่อควรเพิ่ม human evaluation และ semantic/factuality checks; BLEU/BERTScore ก็มี blind spots จึงไม่ใช้ตัวใดแทนการประเมินความหมายทั้งหมด</p></div>
+<div class="qa"><p class="q">Q18: ทำไม CLI ใช้ Typhoon2?</p><p class="answer">A: mT5 fine-tuned baseline ทดลองกับ prompt paraphrase แล้ววนซ้ำ/เปลี่ยนเวลา เพราะ training targets เป็น summary. เลือก Thai instruct model สำหรับ prototype หลัง smoke testing เพื่อให้ทำตามคำสั่งได้ดีกว่า; เป็นการเปลี่ยน inference model ไม่ใช่ผล fine-tune จาก dataset โครงงาน</p></div>
+<div class="qa"><p class="q">Q19: Typhoon2 ฝึกด้วย data นี้หรือไม่?</p><p class="answer">A: ไม่. CLI โหลด pretrained Typhoon2 Llama3.2 3B Instruct จาก Hugging Face; project dataset train ไปที่ mT5 เท่านั้น. ต้องรายงาน model roles แยกกันชัด</p></div>
+<div class="qa"><p class="q">Q20: Guard รับรองว่าความหมายไม่เปลี่ยนไหม?</p><p class="answer">A: ไม่. Guard ปฏิเสธ marker/prompt leaks, output ยาวผิดปกติ, ตัวเลขไม่ตรง และ protected terms บางคำเท่านั้น; คืน source เมื่อเจอความเสี่ยง. ยังตรวจ semantic equivalence, names, negation, units ที่ไม่อยู่ใน list และเลขเขียนเป็นคำไม่ได้ครบ</p></div>
+<div class="qa"><p class="q">Q21: ทำไมผลตัวอย่างเปลี่ยน “เที่ยง” เป็น “12.00 น.” แล้วยอมรับ?</p><p class="answer">A: Validator มีกฎเฉพาะ: เมื่อ source มี “เที่ยง” แต่ไม่ใช่ “เที่ยงคืน” เพิ่มค่า 12 เข้า expected numeric values; จากนั้น normalize 10/10.00 และ 12/12.00. นี่คือ equivalence heuristic เฉพาะรูปแบบ ไม่ได้เข้าใจเวลาโดยทั่วไป</p></div>
+<div class="qa"><p class="q">Q22: ถ้าตัวเลขใน output ถูกต้องแต่เนื้อหาอื่นเปลี่ยน guard จะรู้ไหม?</p><p class="answer">A: อาจไม่รู้. ตัวเลขตรงไม่ได้แปลว่าข้อเท็จจริงทั้งหมดตรง; ต้องให้คนตรวจหรือเพิ่ม evaluation/constraint methods. จึงควรเรียก guard ว่าตัวกรองความเสี่ยงเบื้องต้น</p></div>
+<div class="qa"><p class="q">Q23: ทำไมไม่มี dataset paraphrase เพิ่ม?</p><p class="answer">A: ในการตรวจครั้งนี้ไม่พบ corpus ไทยที่สามารถยืนยัน schema/license/คุณภาพและนำมาใช้ได้ทันทีโดยไม่ตรวจเพิ่ม. ไม่ควรสร้างคู่เทียมจาก QA/brainstorming เพราะ input-output ไม่ใช่ paraphrases. ขั้นต่อไปคือเลือก licensed paired corpus หรือสร้าง human-annotated pairs และบันทึก provenance</p></div>
+<div class="qa"><p class="q">Q24: โปรเจกต์ “ใช้งานได้จริง” แล้วหรือยัง?</p><p class="answer">A: CLI รันได้และมี fallback guard แต่ยังเป็น research prototype; มี smoke tests สองกรณีเท่านั้น ไม่มี human evaluation หรือ task-aligned benchmark จึงยังไม่อ้าง production-ready</p></div>
+<div class="qa"><p class="q">Q25: ถ้าจะทำต่อให้เป็นงานวิจัยที่ตอบโจทย์ จะทำอะไร?</p><p class="answer">A: กำหนด paraphrase/style taxonomy, เก็บหรือเลือก paired Thai data ที่ license ชัด, annotation guideline และ inter-annotator check; split กัน leakage; เทียบ pretrained baseline กับ fine-tuned models; ทำ human blind evaluation, error analysis, factual preservation metrics; pin model revisions และเก็บ device/environment/config</p></div>
+</section>
+
+<section class="section">
+<h2>9. คำตอบที่ควรหลีกเลี่ยง และวิธีตอบอย่างซื่อสัตย์</h2>
+<table><tr><th>อย่าตอบว่า</th><th>ให้ตอบว่า</th></tr>
+<tr><td>“dataset นี้เป็น Thai paraphrase dataset”</td><td>“เป็น Thai synthetic instruction dataset; subset ที่ใช้มี type summarization จึงเป็น weak supervision ไม่ใช่ paraphrase labels”</td></tr>
+<tr><td>“Typhoon2 ถูกฝึกจาก dataset นี้”</td><td>“Typhoon2 เป็น CLI inference model ที่โหลด pretrained แยก; mT5 คือ model ที่ fine-tune จาก project dataset”</td></tr>
+<tr><td>“ROUGE/chrF พิสูจน์ว่ารักษาความหมาย”</td><td>“เป็น lexical overlap metrics; ไม่วัด factuality/semantic preservation/style control”</td></tr>
+<tr><td>“ระบบห้าม hallucination ได้”</td><td>“มี heuristic guard บางชนิดและ fallback; ยังไม่มี guarantee”</td></tr>
+<tr><td>“ทดสอบสองตัวอย่างแล้วจึงแม่นยำ”</td><td>“สองตัวอย่างเป็น smoke test; ต้องมี benchmark/human evaluation ที่ใหญ่และออกแบบถูกต้อง”</td></tr>
+<tr><td>“run ฝึกใช้ GPU/CPU แน่นอน”</td><td>“training report ไม่มี device field; saved args บอก precision flags แต่ไม่บันทึก hardware. ต้องดู log/เครื่อง train เพื่อยืนยัน”</td></tr>
+<tr><td>“เลือก epoch 1 เพราะดีที่สุด”</td><td>“run ที่มีบันทึกใช้หนึ่ง epoch; ยังไม่มี multi-epoch comparison ที่พิสูจน์ว่าเป็น optimum”</td></tr></table>
+<h3>ถ้ากรรมการชี้ว่า project title/claim แรงเกินไป</h3>
+<p>ตอบว่า “เห็นด้วยว่าควรแยก intended task กับ achieved evidence ให้ชัด ในเวอร์ชันนี้ส่วนที่พิสูจน์ได้คือ reproducible data pipeline, mT5 baseline experiment, metrics และ CLI prototype. Paraphrase fidelity ยังเป็น limitation และเป็นงานหลักที่จะเติมด้วย task-aligned annotated data”</p>
+</section>
+
+<section class="section">
+<h2>10. Checklist ก่อนพรี</h2>
+<ul><li>จำความต่าง mT5 fine-tuned vs Typhoon2 pretrained CLI ได้โดยไม่สลับบทบาท</li><li>ตอบได้ว่า dataset เป็น summarization subset, ไม่ใช่ paraphrase gold labels</li><li>จำจำนวน 118,898 → 4,865; split 3,893/486/486; seed 42</li><li>จำ training params: 1 epoch, 487 steps, micro-batch 1, accumulation 8, LR 2e-5, AdamW fused, linear scheduler</li><li>จำผล mT5: chrF 23.4734, ROUGE-L F1 0.0622, 486 test; บอก limitations ต่อทันที</li><li>เปิด training/evaluation reports และ manifest ได้; hash/provenance อยู่ใน manifest</li><li>สาธิต CLI ด้วยข้อความปลอดข้อมูลส่วนบุคคล และอธิบาย fallback guard</li><li>บอกได้ว่า CLI smoke tests ไม่ใช่ benchmark และไม่มี human ratings yet</li><li>ตรวจ license ของ dataset MIT ตาม card และ Typhoon Llama 3.2 Community License; ปฏิบัติตามเงื่อนไข attribution/use</li><li>อย่าอ้างว่าผ่านคุณภาพ production; เสนอแผนเก็บ Thai paraphrase pairs และ evaluation เป็นงานต่อ</li></ul>
+<h3>คำสั่ง demo</h3>
+<pre>python app.py --mode formal --text "พรุ่งนี้ระบบจะปิดปรับปรุงตั้งแต่ 10 โมงเช้าถึงเที่ยง"
+python app.py --mode concise --text "บริษัทจะจัดส่งสินค้าภายใน 3 วันทำการหลังยืนยันการชำระเงิน"</pre>
+</section>
+
+<section class="section">
+<h2>11. ไฟล์หลักฐานที่กรรมการเปิดดูได้</h2>
+<table><tr><th>ต้องการพิสูจน์อะไร</th><th>เปิดไฟล์</th></tr>
+<tr><td>source code ของ filtering/split/provenance</td><td><code>prepare_data.py</code></td></tr>
+<tr><td>dataset origin, row counts, thresholds, seed, hashes</td><td><code>data/manifest.json</code></td></tr>
+<tr><td>ตัวอย่าง data ที่ป้อน train</td><td><code>data/train.jsonl</code></td></tr>
+<tr><td>training algorithm/config</td><td><code>train.py</code>, <code>artifacts/training_report.json</code>, <code>artifacts/checkpoints/checkpoint-487/trainer_state.json</code>, <code>training_args.bin</code></td></tr>
+<tr><td>mT5 architecture values</td><td><code>artifacts/model/config.json</code></td></tr>
+<tr><td>test metrics และ prediction traces</td><td><code>evaluate.py</code>, <code>artifacts/evaluation_report.json</code>, <code>artifacts/predictions.jsonl</code></td></tr>
+<tr><td>CLI model/prompt/guard</td><td><code>app.py</code></td></tr></table>
+</section>
+
+<section class="section">
+<h2>12. เอกสารอ้างอิงและ license</h2>
+<ol><li>Pengpun, Parinthapat, Can Udomcharoenchaikit, Weerayut Buaphet, and Peerat Limkonchotiwat. 2024. “Seed-Free Synthetic Data Generation Framework for Instruction-Tuning LLMs: A Case Study in Thai.” ACL Student Research Workshop. <a href="https://aclanthology.org/2024.acl-srw.38">https://aclanthology.org/2024.acl-srw.38</a></li>
+<li>Dataset card: <a href="https://huggingface.co/datasets/airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k">airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k</a>. MIT according to the card; recheck before redistribution/publication</li>
+<li>mT5: Xue et al. “mT5: A massively multilingual pre-trained text-to-text transformer.” arXiv:2010.11934. <a href="https://arxiv.org/abs/2010.11934">https://arxiv.org/abs/2010.11934</a></li>
+<li>mT5-small model card: <a href="https://huggingface.co/google/mt5-small">https://huggingface.co/google/mt5-small</a>. Apache-2.0 in model card</li>
+<li>Typhoon2 model card: <a href="https://huggingface.co/typhoon-ai/llama3.2-typhoon2-3b-instruct">https://huggingface.co/typhoon-ai/llama3.2-typhoon2-3b-instruct</a>. Llama 3.2 Community License; confirm all use/redistribution requirements</li>
+<li>Typhoon2 technical report: arXiv:2412.13702. <a href="https://arxiv.org/abs/2412.13702">https://arxiv.org/abs/2412.13702</a></li></ol>
+<div class="callout warning"><b>License note:</b> dataset/model licenses are separate. MIT on dataset does not grant rights to Typhoon weights, and Llama Community License is not Apache/MIT. Follow each model card/license when sharing model files, demos, or derivative works.</div>
+<p class="small">เอกสารนี้จัดทำเพื่อช่วยอธิบายสภาพ implementation และ evidence ที่มี ณ วันที่ 8 ต.ค. 2026 ไม่รับประกันผลสอบหรือแทนการตรวจ source/license โดยอาจารย์ที่ปรึกษา</p>
+</section>
+</body>
+</html>

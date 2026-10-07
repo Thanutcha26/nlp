@@ -1,8 +1,8 @@
 # ต้นแบบเรียบเรียงข้อความภาษาไทย
 
-โครงงานนี้เตรียมข้อมูลภาษาไทยและ fine-tune `google/mt5-small` สำหรับทดลองเรียบเรียงข้อความ โดยยึดชุดข้อมูล [WangchanX Seed-Free Synthetic Instruct Thai 120k](https://huggingface.co/datasets/airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k) เป็นแหล่งข้อมูลหลัก
+โครงงานนี้เตรียมข้อมูลจาก [WangchanX Seed-Free Synthetic Instruct Thai 120k](https://huggingface.co/datasets/airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k) และ fine-tune `google/mt5-small` เป็น baseline จากงานสรุปแบบ weak supervision ส่วน CLI ใช้โมเดล instruction ภาษาไทย [Typhoon2 Llama 3.2 3B Instruct](https://huggingface.co/typhoon-ai/llama3.2-typhoon2-3b-instruct) แยกต่างหาก เพราะ mT5 ไม่ผ่านการทดสอบรักษาความหมาย/เวลา; Typhoon2 ไม่ได้ fine-tune ด้วยชุดข้อมูลโครงงาน
 
-> ข้อจำกัดสำคัญ: dataset มีตัวอย่าง 5 ประเภท แต่ไม่มีป้ายกำกับ paraphrase หรือระดับภาษาโดยตรง โครงการนี้ใช้เฉพาะ `summarization` และจับคู่ `context → output` เป็น weak supervision เท่านั้น ตัวกรองความยาวช่วยลดตัวอย่างที่สรุปสั้นมาก แต่ไม่รับประกันความหมายตรงกัน และโมเดลไม่ได้ถูกฝึกแบบมี label สำหรับภาษาทางการ/กึ่งทางการ/กันเอง โหมดในหน้า demo จึงเป็นการทดลอง ไม่ใช่ผลที่ dataset รับรอง
+> ข้อจำกัดสำคัญ: dataset มีตัวอย่าง 5 ประเภท แต่ไม่มีป้ายกำกับ paraphrase หรือระดับภาษาโดยตรง โครงการนี้ใช้เฉพาะ `summarization` และจับคู่ `context → output` เป็น weak supervision เท่านั้น ตัวกรองความยาวช่วยลดตัวอย่างที่สรุปสั้นมาก แต่ไม่รับประกันความหมายตรงกัน และโมเดลไม่ได้ถูกฝึกแบบมี label สำหรับภาษาทางการ/กึ่งทางการ/กันเอง โหมดเรียบเรียงจึงเป็นการทดลอง ไม่ใช่ผลที่ dataset รับรอง
 
 ## เริ่มใช้งาน
 
@@ -16,10 +16,18 @@ python -m pip install -r requirements-train.txt
 python prepare_data.py
 python train.py
 python evaluate.py
-streamlit run app.py
+python app.py --mode formal --text "พรุ่งนี้ระบบจะปิดปรับปรุงตั้งแต่ 10 โมงเช้าถึงเที่ยง อาจเข้าใช้งานไม่ได้ ขออภัยในความไม่สะดวก"
 ```
 
-ขั้นแรก download dataset จาก Hugging Face ประมาณ 239 MB โดยไม่ต้องมี API token; การตั้ง `HF_TOKEN` ช่วยเพิ่ม quota ได้
+โหมดที่ใช้ได้: `rewrite`, `formal`, `semiformal`, `concise`; หากไม่ใส่ `--text` โปรแกรมจะถามข้อความใน terminal
+
+Smoke test ของ CLI ตรวจ 2 ตัวอย่าง: `10 โมงเช้าถึงเที่ยง` ถูกเรียบเรียงเป็น `10.00 น. ถึง 12.00 น.` และ `3 วันทำการ` ยังคงเลข 3 ไว้ นี่เป็นเพียงการตรวจการทำงาน ไม่ใช่ผลประเมินคุณภาพเชิงสถิติ
+
+Typhoon2 ใช้ Llama 3.2 Community License; ตรวจเงื่อนไขและอ้างอิง [model card](https://huggingface.co/typhoon-ai/llama3.2-typhoon2-3b-instruct) ก่อนเผยแพร่
+
+ก่อนแสดงผล CLI จะตรวจ token พิเศษ/ข้อความคำสั่งที่ปะปน ความยาวผิดปกติ ตัวเลข และคำบอกเวลา/หน่วยสำคัญ หากตรวจพบความเสี่ยง โปรแกรมจะแสดงข้อความต้นฉบับแทนเพื่อไม่ส่งต่อผลที่อาจเปลี่ยนข้อเท็จจริง Guard นี้ลดความเสี่ยงบางกรณี แต่ไม่ได้รับประกันการรักษาความหมายทั้งหมด
+
+ขั้นแรก download dataset จาก Hugging Face ประมาณ 239 MB โดยไม่ต้องมี API token; การตั้ง `HF_TOKEN` ช่วยเพิ่ม quota ได้ การใช้ CLI ครั้งแรกจะดาวน์โหลด Typhoon2 3B ประมาณ 6.5 GB และใช้ CPU ได้ แต่อาจใช้เวลาสร้างข้อความ
 
 ### ทดลอง pipeline ขนาดเล็ก
 

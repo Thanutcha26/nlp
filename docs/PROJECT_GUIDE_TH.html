@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>คู่มือโครงการการเรียบเรียงข้อความภาษาไทย</title>
+<style>
+@page { size: A4; margin: 18mm 17mm 19mm; }
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #1d2733; font-family: "Leelawadee UI", Tahoma, sans-serif; font-size: 10.5pt; line-height: 1.55; }
+h1, h2, h3, h4 { color: #153a52; line-height: 1.25; break-after: avoid; }
+h1 { font-size: 29pt; margin: 0 0 10mm; }
+h2 { font-size: 18pt; margin: 0 0 5mm; padding-bottom: 2mm; border-bottom: 1px solid #c8d5df; }
+h3 { font-size: 13pt; margin: 6mm 0 2mm; }
+h4 { font-size: 11pt; margin: 4mm 0 1mm; }
+p { margin: 0 0 3.2mm; }
+ul, ol { margin: 1mm 0 4mm; padding-left: 7mm; }
+li { margin: 0 0 1.2mm; }
+code { font-family: Consolas, "Courier New", monospace; font-size: 9pt; color: #183f58; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 3mm 4mm; background: #f1f5f8; border-left: 2px solid #31708f; font: 8.5pt/1.45 Consolas, "Courier New", monospace; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 5mm; font-size: 9.2pt; break-inside: avoid; }
+th, td { border: 1px solid #c7d3dc; padding: 2.1mm 2.4mm; text-align: left; vertical-align: top; }
+th { background: #eaf1f5; color: #183f58; }
+.callout { background: #f2f7f9; border-left: 3px solid #2b7088; padding: 3mm 4mm; margin: 3mm 0 5mm; break-inside: avoid; }
+.warning { background: #fff6e9; border-left-color: #bd6d14; }
+.small { color: #52616d; font-size: 8.8pt; }
+.cover { min-height: 245mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+.cover .eyebrow { text-transform: uppercase; letter-spacing: .08em; color: #36718b; font-weight: bold; margin-bottom: 9mm; }
+.cover .subtitle { color: #425767; font-size: 15pt; max-width: 145mm; }
+.cover .meta { margin-top: 18mm; padding-top: 4mm; border-top: 1px solid #c8d5df; color: #52616d; font-size: 10pt; }
+.section { page-break-before: always; }
+.section.first { page-break-before: auto; }
+.toc a { color: #1b627e; text-decoration: none; }
+.toc li { padding: 1mm 0; }
+.flow { display: flex; gap: 2mm; align-items: stretch; margin: 4mm 0 6mm; }
+.flow div { flex: 1; padding: 3mm; border: 1px solid #b8cad5; background: #f4f8fa; text-align: center; }
+.flow b { color: #153a52; }
+.note { font-size: 9pt; color: #465966; }
+.nowrap { white-space: nowrap; }
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="eyebrow">Project handbook · Thai NLP</div>
+  <h1>คู่มือโครงการ<br>การเรียบเรียงข้อความภาษาไทย</h1>
+  <p class="subtitle">รายละเอียดระบบ ไฟล์ข้อมูล อัลกอริทึมการเตรียมชุดข้อมูล การ fine-tune การประเมินผล และ CLI สำหรับทดลองเรียบเรียงข้อความ</p>
+  <div class="callout warning"><b>ข้อสรุปที่ต้องทราบก่อนอ่าน:</b> ชุดข้อมูลที่ใช้ฝึก mT5 เป็นชุดสรุปข้อความ ไม่ใช่ชุดคู่ paraphrase โดยตรง ส่วน CLI ปัจจุบันใช้ Typhoon2 3B ซึ่งเป็นโมเดล instruction ที่ดาวน์โหลดแยกและยังไม่ได้ fine-tune ด้วยข้อมูลในโครงการ</div>
+  <div class="meta">จัดทำจาก source code, data manifest และ training/evaluation reports ใน repository<br>วันที่อ้างอิง: 8 ตุลาคม 2026 · ฉบับสำหรับอธิบายและตรวจสอบโครงการ</div>
+</section>
+
+<section class="section first">
+<h2>สารบัญและภาพรวม</h2>
+<ol class="toc">
+<li><a href="#summary">บทสรุปและขอบเขตของระบบ</a></li>
+<li><a href="#architecture">สถาปัตยกรรมและเส้นทางข้อมูล</a></li>
+<li><a href="#files">รายละเอียดไฟล์ทุกส่วน</a></li>
+<li><a href="#dataset">ชุดข้อมูลและการเตรียมข้อมูล</a></li>
+<li><a href="#training">อัลกอริทึมการฝึก mT5</a></li>
+<li><a href="#evaluation">การประเมินผลและหลักฐาน</a></li>
+<li><a href="#inference">CLI, Typhoon2 และ output guard</a></li>
+<li><a href="#run">วิธีติดตั้งและรัน</a></li>
+<li><a href="#limitations">ข้อจำกัด ความเสี่ยง และงานต่อ</a></li>
+<li><a href="#references">ที่มาและการอ้างอิง</a></li>
+</ol>
+<div class="callout"><b>คำศัพท์:</b> source หมายถึงข้อความต้นฉบับ, target/reference หมายถึงข้อความเป้าหมายที่อยู่ในข้อมูลฝึกหรือใช้เทียบ metric, inference คือการให้โมเดลสร้างคำตอบจากข้อความใหม่, weak supervision คือการใช้ label/target ที่ไม่ตรงกับงานเป้าหมายอย่างสมบูรณ์</div>
+<h3 id="summary">1. บทสรุปและขอบเขต</h3>
+<p>repository นี้เริ่มจากการทดลอง fine-tune <code>google/mt5-small</code> ด้วยตัวอย่างประเภท <code>summarization</code> จาก <code>airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k</code> โดยจับ <code>context</code> เป็น source และ <code>output</code> เป็น target แล้วคัดตัวอย่างด้วยคะแนนและอัตราส่วนความยาว</p>
+<p>เมื่อลองให้ mT5 เรียบเรียงประโยคใช้งานจริง พบการวนซ้ำ ปล่อย special token และเปลี่ยนข้อเท็จจริง เช่น “เที่ยง” กลายเป็น “เที่ยงคืน” จึงไม่ใช้ mT5 เป็นโมเดล CLI ปัจจุบัน แต่เก็บ model/report ไว้เป็น baseline และเลือก Typhoon2 Llama 3.2 3B Instruct สำหรับ CLI หลังทดสอบ smoke test กับสองตัวอย่าง</p>
+<table><tr><th>ส่วนระบบ</th><th>โมเดล</th><th>วัตถุประสงค์</th><th>สถานะ</th></tr>
+<tr><td>Training / evaluation</td><td><code>google/mt5-small</code></td><td>ทดลองเรียนรู้ source→target จาก weakly supervised summarization pairs</td><td>มี weights, report และคะแนนบน test แต่ไม่ตรง paraphrase โดยตรง</td></tr>
+<tr><td>CLI inference</td><td><code>typhoon-ai/llama3.2-typhoon2-3b-instruct</code></td><td>รับ instruction ภาษาไทยและสร้างข้อความเรียบเรียง</td><td>โหลดจาก Hugging Face ครั้งแรก; ไม่ได้ fine-tune ด้วย data ใน repository</td></tr></table>
+<div class="callout warning"><b>อย่าสรุปเกินหลักฐาน:</b> ตัวอย่าง CLI สองประโยคเป็น smoke test เท่านั้น ไม่ใช่ benchmark และไม่พิสูจน์ว่าโมเดลรักษาความหมายได้ทุกกรณี</div>
+</section>
+
+<section class="section" id="architecture">
+<h2>2. สถาปัตยกรรมและเส้นทางข้อมูล</h2>
+<h3>2.1 เส้นทางเตรียมข้อมูลและฝึก</h3>
+<div class="flow"><div><b>Hugging Face</b><br>118,898 rows</div><div><b>prepare_data.py</b><br>filter + dedupe + split</div><div><b>data/*.jsonl</b><br>3,893 / 486 / 486</div><div><b>train.py</b><br>mT5 fine-tune</div><div><b>artifacts/</b><br>weights + evidence</div></div>
+<ol><li>โหลด training split ของ dataset ต้นทาง</li><li>คัดเฉพาะ summarization, คะแนนอย่างน้อย 7, source/target ต้องไม่ว่าง, target/source ยาว 0.65–1.25 และ source ต้องไม่ซ้ำ</li><li>สุ่มแบบ deterministic ด้วย seed 42 แบ่ง train/validation/test เป็น 80/10/10 หลัง deduplicate</li><li>ฝึก mT5 ด้วย train และคำนวณ evaluation loss บน validation ทุก epoch</li><li>บันทึก model/checkpoint และ <code>training_report.json</code></li></ol>
+<h3>2.2 เส้นทางประเมิน baseline</h3>
+<p><code>evaluate.py</code> โหลด <code>artifacts/model</code> ซึ่งเป็น mT5 ที่ fine-tune แล้ว สร้าง prediction สำหรับ <code>data/test.jsonl</code> ทั้ง 486 แถว จากนั้นคำนวณ chrF และ ROUGE-L และบันทึก report/predictions</p>
+<h3>2.3 เส้นทางใช้งานข้อความใหม่</h3>
+<div class="flow"><div><b>PowerShell</b><br>ข้อความ + mode</div><div><b>app.py</b><br>chat template</div><div><b>Typhoon2 3B</b><br>greedy generation</div><div><b>validate_output</b><br>heuristic guard</div><div><b>พิมพ์ผลหรือ fallback</b></div></div>
+<p>CLI ไม่ได้อ่าน weights ใน <code>artifacts/model</code> แต่โหลด <code>typhoon-ai/llama3.2-typhoon2-3b-instruct</code> แยกผ่าน Hugging Face cache เพราะการทดลอง mT5 เดิมไม่ผ่านเกณฑ์การเรียบเรียงตัวอย่าง</p>
+</section>
+
+<section class="section" id="files">
+<h2>3. รายละเอียดไฟล์และโฟลเดอร์</h2>
+<table><tr><th>ไฟล์/โฟลเดอร์</th><th>หน้าที่และข้อมูลสำคัญ</th></tr>
+<tr><td><code>app.py</code></td><td>จุดเริ่มต้น CLI สำหรับผู้ใช้; รับ <code>--mode</code>, <code>--text</code>, <code>--max-new-tokens</code>; โหลด Typhoon2; สร้าง chat prompt; generate; ตรวจ output; พิมพ์คำตอบหรือคืน source</td></tr>
+<tr><td><code>prepare_data.py</code></td><td>โหลด dataset, กรอง/ตัดซ้ำ, สุ่มแบ่งข้อมูล, เขียน JSONL และ manifest พร้อม SHA-256</td></tr>
+<tr><td><code>train.py</code></td><td>fine-tune mT5 แบบ sequence-to-sequence บน train/validation splits และเขียน model/report</td></tr>
+<tr><td><code>evaluate.py</code></td><td>สร้าง mT5 predictions บน test split คำนวณ chrF/ROUGE-L และบันทึกผลตรวจสอบรายตัวอย่าง</td></tr>
+<tr><td><code>README.md</code></td><td>คำแนะนำเริ่มต้น ข้อจำกัดและคำสั่งรัน (คู่มือนี้ขยายรายละเอียดเพิ่มเติม)</td></tr>
+<tr><td><code>requirements.txt</code></td><td>dependencies หลัก เช่น datasets, torch, transformers, sentencepiece</td></tr>
+<tr><td><code>requirements-train.txt</code></td><td>อ้าง <code>requirements.txt</code> และเพิ่ม accelerate, rouge-score, sacrebleu สำหรับ train/evaluate</td></tr>
+<tr><td><code>data/manifest.json</code></td><td>หลักฐาน provenance, dataset fingerprint, เงื่อนไขคัด, จำนวน rejected/accepted, split seed, row counts, SHA-256 และข้อจำกัด</td></tr>
+<tr><td><code>data/train.jsonl</code></td><td>3,893 ตัวอย่างสำหรับอัปเดตน้ำหนัก mT5</td></tr>
+<tr><td><code>data/validation.jsonl</code></td><td>486 ตัวอย่างสำหรับคำนวณ eval loss/เลือก checkpoint ระหว่าง train; ไม่ใช่ test</td></tr>
+<tr><td><code>data/test.jsonl</code></td><td>486 ตัวอย่าง holdout สำหรับประเมินหลังฝึก; ห้ามนำไปฝึก</td></tr>
+<tr><td><code>artifacts/model/</code></td><td>mT5 fine-tuned model สำหรับ <code>evaluate.py</code>; มี config, generation config, weights, tokenizer และ training args</td></tr>
+<tr><td><code>artifacts/checkpoints/</code></td><td>checkpoint/trainer state จาก Hugging Face Trainer; checkpoint มี model, scheduler, RNG, tokenizer และ state บางไฟล์</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/optimizer.pt</code></td><td>optimizer state ขนาดประมาณ 2.29 GB; ถูก ignore และเก็บ local-only เพราะเกิน GitHub LFS Free/Pro ต่อไฟล์ 2 GB</td></tr>
+<tr><td><code>artifacts/training_report.json</code></td><td>พารามิเตอร์และ metrics ของการฝึก mT5 พร้อม hashes ของ train/validation</td></tr>
+<tr><td><code>artifacts/evaluation_report.json</code></td><td>metrics บน test split 486 แถวและคำอธิบายความหมาย/ข้อจำกัดของ metric</td></tr>
+<tr><td><code>artifacts/predictions.jsonl</code></td><td>source, reference, model output และ source index สำหรับตรวจ output รายแถว</td></tr>
+<tr><td><code>.gitignore</code></td><td>ไม่ track venv, cache, secret <code>.env</code>, Python cache และ optimizer.pt</td></tr>
+<tr><td><code>.gitattributes</code></td><td>กำหนด <code>*.safetensors</code> ให้ใช้ Git LFS</td></tr>
+<tr><td><code>.env</code></td><td>ค่าตั้งค่าส่วนตัว/secret ถ้ามี; ถูก ignore ห้ามเผยแพร่ค่าในไฟล์</td></tr>
+<tr><td><code>.venv/</code></td><td>Python virtual environment ในเครื่อง ไม่ใช่ source และไม่ควร commit</td></tr>
+<tr><td><code>.git/</code></td><td>ประวัติ/version control ของ repository ไม่ใช่ข้อมูล runtime</td></tr>
+<tr><td><code>__pycache__/</code></td><td>ไฟล์ bytecode ที่ Python สร้างอัตโนมัติ; ไม่ใช่ source</td></tr></table>
+<h3>3.1 ไฟล์ย่อยของ model และ checkpoint</h3>
+<table><tr><th>ไฟล์</th><th>บทบาท</th></tr>
+<tr><td><code>artifacts/model/config.json</code></td><td>โครงสร้าง mT5 เช่น จำนวน layer, ขนาด hidden state, vocabulary และ special token IDs</td></tr>
+<tr><td><code>artifacts/model/generation_config.json</code></td><td>ค่าเริ่มต้นสำหรับการ generate ของ model ที่บันทึกไว้</td></tr>
+<tr><td><code>artifacts/model/model.safetensors</code></td><td>น้ำหนัก mT5 ที่ fine-tune แล้ว; ใช้โดย evaluate.py ไม่ใช่ Typhoon CLI</td></tr>
+<tr><td><code>artifacts/model/special_tokens_map.json</code></td><td>mapping ของ pad/eos/unk และ special tokens</td></tr>
+<tr><td><code>artifacts/model/spiece.model</code></td><td>SentencePiece vocabulary/model ที่ tokenizer ของ mT5 ใช้แบ่งข้อความ</td></tr>
+<tr><td><code>artifacts/model/tokenizer.json</code></td><td>serialised tokenizer backend สำหรับการ tokenize/decode</td></tr>
+<tr><td><code>artifacts/model/tokenizer_config.json</code></td><td>ชนิด tokenizer และค่าตั้งที่ใช้โหลด tokenizer กลับ</td></tr>
+<tr><td><code>artifacts/model/training_args.bin</code></td><td>Hugging Face TrainingArguments ที่ serialize จากรอบฝึก</td></tr>
+<tr><td><code>artifacts/checkpoints/trainer_state.json</code></td><td>trainer state ที่ระดับ output directory ใช้บันทึก step/log/checkpoint metadata</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/config.json</code></td><td>configuration ของ model ใน checkpoint-487</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/generation_config.json</code></td><td>ค่า generation ที่บันทึกพร้อม checkpoint</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/model.safetensors</code></td><td>weights ณ checkpoint นี้; ไฟล์เนื้อหาซ้ำกับ model.safetensors ใน artifacts/model</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/optimizer.pt</code></td><td>สถานะ optimizer สำหรับ resume training; ไม่จำเป็นต่อ inference และถูก ignore เพราะ 2.29 GB</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/rng_state.pth</code></td><td>สถานะ random number generators เพื่อ resume ให้ต่อเนื่อง</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/scheduler.pt</code></td><td>สถานะ learning-rate scheduler สำหรับ resume training</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/special_tokens_map.json</code></td><td>mapping special tokens ของ tokenizer ใน checkpoint</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/spiece.model</code></td><td>SentencePiece model ที่ checkpoint ใช้</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/tokenizer.json</code></td><td>serialised tokenizer backend ณ checkpoint</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/tokenizer_config.json</code></td><td>ค่าตั้งสำหรับสร้าง tokenizer จาก checkpoint</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/trainer_state.json</code></td><td>global step, log history และข้อมูลควบคุมการฝึกของ checkpoint</td></tr>
+<tr><td><code>artifacts/checkpoints/checkpoint-487/training_args.bin</code></td><td>TrainingArguments ที่ serialize ณ checkpoint</td></tr></table>
+</section>
+
+<section class="section" id="dataset">
+<h2>4. ชุดข้อมูลและอัลกอริทึมการเตรียม</h2>
+<h3>4.1 ที่มาและ schema</h3>
+<p>แหล่งข้อมูลคือ <code>airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k</code> ซึ่ง manifest ระบุ 118,898 rows ใน train split, fingerprint <code>24a35b6a961cfde3</code>, license MIT ตาม dataset card และ citation งาน ACL SRW 2024</p>
+<p>ตัวอย่างใน JSONL มี keys: <code>source_text</code>, <code>target_text</code>, <code>instruction</code>, <code>rating</code>, <code>source_index</code>. ใน source dataset ใช้ <code>context</code> เป็นข้อความต้นทางและ <code>output</code> เป็นคำตอบเป้าหมาย</p>
+<table><tr><th>ชนิดข้อมูลใน source</th><th>จำนวนแถว</th></tr><tr><td>conversation</td><td>24,865</td></tr><tr><td>multiple_choice</td><td>23,975</td></tr><tr><td>brainstorming</td><td>23,844</td></tr><tr><td>question_answering</td><td>23,366</td></tr><tr><td>summarization</td><td>22,848</td></tr></table>
+<h3>4.2 ตัวกรอง</h3>
+<ol><li>ถ้า <code>type != summarization</code> ให้ reject</li><li>ตัด whitespace ที่หัว/ท้าย source และ target; ค่าว่างอย่างใดอย่างหนึ่งให้ reject</li><li>แปลง rating เป็น float และต้อง <code>rating &gt;= 7.0</code></li><li>คำนวณ <code>r = len(target) / len(source)</code> ด้วยจำนวนตัวอักษร Unicode ของ Python; รับเฉพาะ <code>0.65 &lt;= r &lt;= 1.25</code></li><li>สร้าง SHA-256 จาก source ที่ trim แล้ว; source hash ที่เคยพบแล้วจะ reject</li><li>เก็บ source/target/instruction/rating/index ไว้</li></ol>
+<pre>for each source row:
+  if type != summarization: reject
+  source = trim(context); target = trim(output)
+  if source or target is empty: reject
+  if rating &lt; 7: reject
+  ratio = character_count(target) / character_count(source)
+  if ratio outside [0.65, 1.25]: reject
+  if sha256(source) already seen: reject
+  accept(source, target, instruction, rating, source_index)</pre>
+<h3>4.3 Split และหลักฐาน</h3>
+<p>คัดแล้ว 4,865 คู่; rejected ตามเหตุผล: ไม่ใช่ summarization 96,050, length ratio 12,550, คะแนนต่ำ 4,230, source ซ้ำ 1,203 รวม 114,033 แถว. จากนั้นใช้สำเนารายการที่ยอมรับ, <code>random.Random(42).shuffle</code>, ปัดจำนวน test/validation ด้วย <code>round(n × 0.10)</code>, และใช้ส่วนที่เหลือเป็น train</p>
+<table><tr><th>Split</th><th>จำนวน</th><th>SHA-256 (ขึ้นต้น)</th><th>ใช้ทำอะไร</th></tr><tr><td>train</td><td>3,893</td><td><code>569edc41e3d4...</code></td><td>คำนวณ gradient/update น้ำหนัก</td></tr><tr><td>validation</td><td>486</td><td><code>410d19713fa8...</code></td><td>คำนวณ eval loss ระหว่างฝึก</td></tr><tr><td>test</td><td>486</td><td><code>287f200bedd2...</code></td><td>ประเมินหลังฝึกเท่านั้น</td></tr></table>
+<div class="callout warning"><b>การตีความ:</b> length ratio ช่วยตัดคำตอบที่สั้นกว่ามาก แต่ไม่ได้รับรองว่าเป็น paraphrase; target อาจสรุป ตกหล่น หรือเพิ่มข้อเท็จจริง และไม่มี style labels สำหรับ formal/semiformal/casual</div>
+</section>
+
+<section class="section" id="training">
+<h2>5. อัลกอริทึมการฝึก mT5</h2>
+<h3>5.1 การแปลง input/target</h3>
+<p>สำหรับแต่ละแถว train/validation สคริปต์ประกอบ input เป็น <code>instruction: {instruction}\ncontext: {source_text}</code> แล้ว tokenize โดยตัดที่ 512 tokens. Target tokenize แยกด้วย <code>text_target</code> และตัดที่ 384 tokens. Data collator ทำ padding ให้ batch และตั้ง labels สำหรับ seq2seq loss</p>
+<h3>5.2 การเรียนรู้</h3>
+<p>mT5 เป็น encoder-decoder seq2seq. Encoder อ่าน token ของ instruction + source; decoder เรียนรู้ทำนาย target token ทีละตำแหน่งโดยใช้ teacher forcing. วัตถุประสงค์เป็น token cross-entropy: ลดความคลาดเคลื่อนระหว่าง token เป้าหมายและการกระจายความน่าจะเป็นที่โมเดลทำนาย</p>
+<pre>input_ids = tokenize("instruction: ...\\ncontext: " + source)
+labels    = tokenize(target)
+for batch in train:
+  logits = mT5(input_ids, labels=labels)
+  loss = token_cross_entropy(logits, labels)
+  backpropagate(loss)
+  optimizer.step() when gradient accumulation reaches 8 micro-batches
+  evaluate validation loss at each epoch end
+keep checkpoint with lowest eval_loss</pre>
+<h3>5.3 ค่าตั้งที่บันทึก</h3>
+<table><tr><th>พารามิเตอร์</th><th>ค่า</th></tr><tr><td>Base model</td><td><code>google/mt5-small</code></td></tr><tr><td>Epochs</td><td>1</td></tr><tr><td>Train / validation rows</td><td>3,893 / 486</td></tr><tr><td>Per-device batch</td><td>1</td></tr><tr><td>Gradient accumulation</td><td>8</td></tr><tr><td>Effective batch ที่ตั้งใจ</td><td>ประมาณ 8 samples ต่อ optimizer update</td></tr><tr><td>Learning rate</td><td>2×10⁻⁵</td></tr><tr><td>Weight decay</td><td>0.01</td></tr><tr><td>Seed</td><td>42</td></tr><tr><td>Checkpoint policy</td><td>save/evaluate ทุก epoch, เลือก eval_loss ต่ำสุด, เก็บ checkpoint ล่าสุด/ดีที่สุดหนึ่งชุด</td></tr></table>
+<p>รายงานระบุ training runtime 9,914 วินาที (ประมาณ 2 ชั่วโมง 45 นาที), train loss 7.6032, validation eval loss 2.1857 และ validation runtime 265 วินาที. Training log บันทึก loss เป็นช่วงทุก 25 optimizer steps</p>
+<div class="callout warning"><b>Loss ต่ำไม่เท่ากับ paraphrase ถูกต้อง:</b> โมเดลกำลังเรียนเลียนแบบ target สรุปที่อยู่ในข้อมูล ไม่ได้ถูกสอนให้รักษาทุกข้อเท็จจริงหรือเปลี่ยนระดับภาษาอย่างควบคุม</div>
+</section>
+
+<section class="section" id="evaluation">
+<h2>6. การประเมินผลและหลักฐาน</h2>
+<h3>6.1 วิธีของ <code>evaluate.py</code></h3>
+<ol><li>อ่าน test split ทั้งหมด (ค่า default <code>--max-samples 0</code> หมายถึงทั้งหมด)</li><li>สร้าง prompt จาก instruction + source; tokenize padding/truncation ที่ 512 tokens</li><li>แบ่ง batch ค่าเริ่มต้น 4; generate ได้ไม่เกิน 256 tokens, beam search 4, deterministic (<code>do_sample=False</code>)</li><li>คำนวณ corpus chrF เทียบ reference และค่าเฉลี่ย ROUGE-L F1</li><li>เขียนทุก prediction ไป <code>artifacts/predictions.jsonl</code> และ report ไป <code>artifacts/evaluation_report.json</code></li></ol>
+<h3>6.2 ผลใน report ที่ repository มี</h3>
+<table><tr><th>ตัวชี้วัด</th><th>ผล</th><th>ความหมาย/ข้อจำกัด</th></tr><tr><td>test examples</td><td>486</td><td>จำนวน test rows ใน report</td></tr><tr><td>chrF</td><td>23.4734</td><td>character n-gram overlap; ไม่ใช่ semantic truthfulness</td></tr><tr><td>ROUGE-L F1</td><td>0.0622</td><td>longest-common-subsequence overlap; ต่ำเมื่อเทียบ reference แต่ตีความแยกจาก task mismatch</td></tr></table>
+<p>metrics นี้เทียบ mT5 กับ target ที่เป็น synthetic summarization เท่านั้น ไม่ได้ประเมิน Typhoon CLI, ความถูกต้องของข้อเท็จจริง, ความเทียบเท่าทางความหมาย หรือระดับภาษา ตัวเลข CLI สองประโยคเป็น smoke test ไม่ใช่การทดลองเชิงสถิติ</p>
+<h3>6.3 Human evaluation ที่ยังต้องทำ</h3>
+<p>แนวทางก่อนนำเสนอ: สุ่ม test examples, แสดง source/reference/model output แบบไม่ชี้นำ, ให้ผู้ประเมินอย่างน้อยสองคนให้คะแนน fluency, meaning preservation และ style appropriateness ระดับ 1–5 พร้อมทำเครื่องหมาย factual drift (ใช่/ไม่ใช่), แล้วรายงานคะแนนแยก/ความเห็นไม่ตรงกัน ปัจจุบันยังไม่มีไฟล์ผล human evaluation ใน repository</p>
+</section>
+
+<section class="section" id="inference">
+<h2>7. CLI, Typhoon2 และ output guard</h2>
+<h3>7.1 การสร้าง prompt และผล</h3>
+<p><code>app.py</code> ใช้ AutoTokenizer/AutoModelForCausalLM ของ Typhoon2, ประกอบ system/user messages, แล้ว serialize ด้วย chat template ของ tokenizer เพื่อได้ input token IDs. Model generate ใช้ <code>do_sample=False</code>, <code>repetition_penalty=1.08</code>, <code>no_repeat_ngram_size=4</code> และ <code>max_new_tokens</code> ที่ผู้ใช้กำหนด (default 128). เนื่องจาก do_sample=False ผลจะ deterministic สำหรับ weights/prompt/config เดิม</p>
+<p>หลัง generate จะตัด token IDs ของ prompt ออกจากลำดับรวมก่อน decode, ลบ special tokens, trim whitespace และเก็บเฉพาะย่อหน้าแรกเพื่อตัดหมายเหตุแถมที่โมเดลอาจสร้าง</p>
+<h3>7.2 Guard เชิง heuristic</h3>
+<table><tr><th>ตรวจอะไร</th><th>วิธี</th><th>เมื่อพบปัญหา</th></tr><tr><td>คำตอบว่าง</td><td>strip แล้วตรวจ empty</td><td>คืนเหตุผล reject</td></tr><tr><td>prompt/sentinel รั่ว</td><td>หา <code>&lt;extra_id_</code>, <code>instruction:</code>, <code>context:</code>, <code>โปรดเรียบเรียง</code></td><td>ไม่แสดง output; ใช้ source</td></tr><tr><td>ความยาวผิดปกติ</td><td>reject เมื่อยาวกว่า max(2×source, source+120)</td><td>fallback เป็น source</td></tr><tr><td>ตัวเลข</td><td>ดึงเลขอารบิก/ไทย, normalize เลขไทย, comma, ทศนิยม .00; หาก source มี “เที่ยง” (ไม่ใช่เที่ยงคืน) เพิ่มค่า 12 ที่คาดหมาย</td><td>ต้องตรงลำดับตัวเลข ไม่เช่นนั้น fallback</td></tr><tr><td>คำสำคัญที่กำหนด</td><td>เปรียบเทียบ subset ของ วันนี้/พรุ่งนี้/เมื่อวาน/มะรืน/เที่ยงคืน/บาท/เปอร์เซ็นต์</td><td>หากเพิ่ม/หายไป fallback</td></tr></table>
+<p>Guard ไม่ได้ตรวจความหมายทั่วไปหรือข้อเท็จจริงทุกชนิด เช่น ชื่อคน หน่วยอื่น ข้อปฏิเสธ ความสัมพันธ์เชิงเหตุผล และเลขที่เขียนเป็นคำ จึงเป็นการลดความเสี่ยงบางกลุ่ม ไม่ใช่ formal guarantee</p>
+<h3>7.3 โหมด</h3>
+<table><tr><th>CLI mode</th><th>คำสั่งที่ส่งให้โมเดล</th><th>หมายเหตุ</th></tr><tr><td><code>rewrite</code></td><td>เรียบเรียงใหม่</td><td>default</td></tr><tr><td><code>formal</code></td><td>เรียบเรียงเป็นภาษาทางการ</td><td>ไม่มี supervised formality labels ใน training data</td></tr><tr><td><code>semiformal</code></td><td>เรียบเรียงเป็นภาษากึ่งทางการ</td><td>ผลขึ้นกับ pretrained model/prompt</td></tr><tr><td><code>concise</code></td><td>เรียบเรียงให้กระชับ</td><td>ความกระชับอาจตัดรายละเอียด จึงควรตรวจ</td></tr></table>
+</section>
+
+<section class="section" id="run">
+<h2>8. วิธีติดตั้งและรัน</h2>
+<h3>8.1 เตรียม environment</h3>
+<pre>py -3.11 -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements-train.txt</pre>
+<p>README แนะนำ Python 3.11/3.12; environment ที่ตรวจในเครื่องนี้เป็น Windows + Python 3.14.3, torch 2.14.1, transformers 4.57.6, datasets 4.8.5. ผลติดตั้งอาจต่างกันตาม Python/driver/GPU</p>
+<h3>8.2 เตรียมข้อมูลและฝึก baseline</h3>
+<pre>python prepare_data.py
+python train.py
+python evaluate.py</pre>
+<p><code>prepare_data.py</code> จะดาวน์โหลด source dataset ถ้ายังไม่มี cache. <code>train.py</code> ใช้ CPU ได้แต่ช้า; <code>evaluate.py</code> ใช้ test ครบ 486 ตัวอย่างเป็นค่าเริ่มต้น. อย่ารัน train ซ้ำถ้าต้องการเพียงทดลอง CLI</p>
+<h3>8.3 ใช้งาน CLI</h3>
+<pre>python app.py
+python app.py --mode formal --text "พรุ่งนี้ระบบจะปิดปรับปรุงตั้งแต่ 10 โมงเช้าถึงเที่ยง"
+python app.py --mode concise --text "บริษัทจะจัดส่งสินค้าภายใน 3 วันทำการหลังยืนยันการชำระเงิน"</pre>
+<p>ครั้งแรกจะโหลด Typhoon2 ประมาณ 6.5 GB ไปยัง Hugging Face cache; ข้อความ generation ใช้ CPU ได้แต่ช้ากว่า GPU. ถ้า guard ปฏิเสธผล โปรแกรมจะแสดงเหตุผลและข้อความต้นฉบับแทน</p>
+<h3>8.4 ไฟล์รายงาน</h3>
+<p>เตรียมข้อมูล → <code>data/manifest.json</code>; ฝึก mT5 → <code>artifacts/training_report.json</code>; ประเมิน mT5 → <code>artifacts/evaluation_report.json</code> และ <code>artifacts/predictions.jsonl</code>. การเรียก CLI ไม่เขียน report โดยอัตโนมัติ และไม่มี telemetry ของผลผู้ใช้</p>
+</section>
+
+<section class="section" id="limitations">
+<h2>9. ข้อจำกัด ความเสี่ยง และงานต่อ</h2>
+<ol><li><b>Task mismatch:</b> source data เป็น summarization; target อาจตัด/เพิ่มรายละเอียด จึงไม่ใช่ gold paraphrase</li><li><b>mT5 baseline มีพฤติกรรมผิด:</b> เคยสร้าง output ซ้ำและเปลี่ยนเวลา; ไม่ใช้เป็นโมเดล CLI ปัจจุบัน</li><li><b>Typhoon ไม่ได้ fine-tune ด้วย project data:</b> ทำให้ CLI ทดลองได้ดีขึ้น แต่ผลนี้ไม่ใช่ผลการฝึกจาก WangchanX dataset</li><li><b>ไม่มี controlled-style labels:</b> formal/semiformal/concise เป็น prompt modes ไม่ใช่ความสามารถที่วัดรับรอง</li><li><b>Guard มีขอบเขตจำกัด:</b> heuristics ตรวจเฉพาะ marker, length, ตัวเลข และคำสำคัญบางคำ; ไม่รับรอง semantic equivalence</li><li><b>ผลประเมินคนละโมเดล:</b> metrics ใน report มาจาก mT5 บน summarization targets; ห้ามนำไปอ้างว่า Typhoon CLI ได้คะแนนดังกล่าว</li><li><b>ทรัพยากร:</b> Typhoon2 ใช้ RAM/เวลาเพิ่ม; เครื่องที่ไม่มี CUDA จะทำงานบน CPU</li></ol>
+<h3>งานต่อที่มีหลักฐานรองรับ</h3>
+<ul><li>หา/จัดทำ Thai paraphrase pairs ที่มี source, target, style labels และ license ตรวจสอบได้; อย่าแปลง QA/brainstorming เป็นคู่ paraphrase โดยไม่มี annotation</li><li>ทำ train/validation/test สำหรับ task ใหม่โดย split ตาม source/document group ป้องกัน leakage</li><li>สร้าง regression set ที่มีตัวเลข เวลา วันที่ หน่วย ชื่อ และ negation; ตรวจ exact preservation และ human review</li><li>ประเมิน Typhoon CLI แยกจาก mT5 ด้วย sample set เดียวกันและบันทึก model ID/revision, prompt, decoding params</li><li>รายงาน human ratings และ error analysis ก่อนกล่าวอ้างว่าใช้งานเชื่อถือได้</li></ul>
+</section>
+
+<section class="section" id="references">
+<h2>10. ที่มาและการอ้างอิง</h2>
+<ol><li>Pengpun, Parinthapat, Can Udomcharoenchaikit, Weerayut Buaphet, and Peerat Limkonchotiwat. 2024. “Seed-Free Synthetic Data Generation Framework for Instruction-Tuning LLMs: A Case Study in Thai.” ACL Student Research Workshop. <a href="https://aclanthology.org/2024.acl-srw.38">aclanthology.org/2024.acl-srw.38</a>.</li>
+<li>Dataset: <a href="https://huggingface.co/datasets/airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k">airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k</a>. manifest ระบุ MIT ตาม dataset card; ตรวจ card ฉบับปัจจุบันก่อนนำเผยแพร่</li>
+<li>CLI model: <a href="https://huggingface.co/typhoon-ai/llama3.2-typhoon2-3b-instruct">typhoon-ai/llama3.2-typhoon2-3b-instruct</a>. model card ระบุ Thai/English และ Llama 3.2 Community License; ต้องตรวจเงื่อนไขการใช้ก่อนแจกจ่าย/เผยแพร่</li>
+<li>Baseline model: <a href="https://huggingface.co/google/mt5-small">google/mt5-small</a>.</li></ol>
+<div class="callout"><b>แนวทางนำเสนอ:</b> ให้เรียก mT5 ว่า “baseline fine-tuned บน weakly supervised summarization pairs”; เรียก Typhoon2 ว่า “pretrained instruction model ที่ใช้เป็น CLI prototype”; ระบุอย่างตรงไปตรงมาว่ายังไม่มี Thai gold paraphrase dataset และยังไม่มี human-evaluation result</div>
+<p class="small">ไฟล์นี้อธิบาย repository ตามสภาพ ณ วันที่จัดทำ ไม่ได้แทน license text, model card, dataset card หรือการตรวจสอบทางวิชาการฉบับเต็ม</p>
+</section>
+</body>
+</html>

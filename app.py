@@ -1,69 +1,114 @@
+import argparse
+import re
 from pathlib import Path
 
-import streamlit as st
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 ROOT = Path(__file__).resolve().parent
-MODEL_DIR = ROOT / "artifacts" / "model"
-MODEL_NAME = "google/mt5-small"
+MODEL_ID = "typhoon-ai/llama3.2-typhoon2-3b-instruct"
 MODES = {
-    "เรียบเรียงใหม่": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทย โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน ใช้สำนวนที่เป็นธรรมชาติ อ่านลื่นไหล และอย่าสรุปหรือตัดรายละเอียด",
-    "ภาษาทางการ": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทยระดับทางการ สุภาพและเป็นธรรมชาติ โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน อย่าสรุปหรือตัดรายละเอียด",
-    "ภาษากึ่งทางการ": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทยกึ่งทางการที่สุภาพ เป็นธรรมชาติ และอ่านเข้าใจง่าย โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน",
-    "กระชับ": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่ให้กระชับ อ่านลื่นไหล โดยรักษาข้อเท็จจริงและสาระสำคัญไว้ให้ครบ",
+    "rewrite": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทย โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน ใช้สำนวนที่เป็นธรรมชาติ อ่านลื่นไหล และอย่าสรุปหรือตัดรายละเอียด",
+    "formal": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทยระดับทางการ สุภาพและเป็นธรรมชาติ โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน อย่าสรุปหรือตัดรายละเอียด",
+    "semiformal": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทยกึ่งทางการที่สุภาพ เป็นธรรมชาติ และอ่านเข้าใจง่าย โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน",
+    "concise": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่ให้กระชับ อ่านลื่นไหล โดยรักษาข้อเท็จจริงและสาระสำคัญไว้ให้ครบ",
 }
-
-
-@st.cache_resource
-def load_model():
-    model_path = MODEL_DIR if MODEL_DIR.exists() else MODEL_NAME
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
-    model.eval()
-    return tokenizer, model
-
-
-st.set_page_config(page_title="Thai Text Rewriter", page_icon="✍️", layout="centered")
-st.title("Thai Text Rewriter")
-st.caption("ต้นแบบเรียบเรียงข้อความภาษาไทย")
-st.warning(
-    "โมเดลฝึกจากตัวอย่างงานสรุป ไม่ได้ฝึกด้วยป้ายกำกับระดับภาษาโดยตรง "
-    "ผลลัพธ์ทุกโหมดเป็นการทดลองและควรตรวจความหมายก่อนนำไปใช้"
+MODE_LABELS = {
+    "rewrite": "ใหม่",
+    "formal": "เป็นภาษาทางการ",
+    "semiformal": "เป็นภาษากึ่งทางการ",
+    "concise": "ให้กระชับ",
+}
+PROTECTED_TERMS = (
+    "พรุ่งนี้", "วันนี้", "เมื่อวาน", "มะรืน", "เที่ยงคืน", "บาท", "เปอร์เซ็นต์",
 )
 
-mode = st.selectbox("รูปแบบภาษา", list(MODES))
-text = st.text_area("ข้อความต้นฉบับ", height=220, max_chars=4000)
-run = st.button("เรียบเรียง", type="primary", disabled=not text.strip())
 
-if run:
-    if not MODEL_DIR.exists():
-        st.error("ยังไม่พบโมเดลที่ผ่านการ fine-tune ใน artifacts/model. อ่าน README.md เพื่อเริ่ม train")
-    else:
-        with st.spinner("กำลังเรียบเรียงข้อความ..."):
-            tokenizer, model = load_model()
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            model.to(device)
-            prompt = f"instruction: {MODES[mode]}\ncontext: {text.strip()}"
-            inputs = tokenizer(
-                prompt,
-                return_tensors="pt",
-                truncation=True,
-                max_length=512,
-            ).to(device)
-            with torch.inference_mode():
-                generated = model.generate(
-                    **inputs,
-                    max_new_tokens=384,
-                    num_beams=4,
-                    do_sample=False,
-                )
-            result = tokenizer.decode(generated[0], skip_special_tokens=True)
-        st.text_area("ผลลัพธ์", result, height=220)
-        st.download_button(
-            "ดาวน์โหลดผลลัพธ์",
-            data=result,
-            file_name="thai_rewrite.txt",
-            mime="text/plain",
+def validate_output(source: str, output: str) -> str | None:
+    candidate = output.strip()
+    if not candidate:
+        return "โมเดลไม่ได้สร้างข้อความ"
+    if any(marker in candidate for marker in ("<extra_id_", "instruction:", "context:", "โปรดเรียบเรียง")):
+        return "ผลลัพธ์มี token พิเศษหรือข้อความคำสั่งปะปน"
+    if len(candidate) > max(len(source) * 2, len(source) + 120):
+        return "ผลลัพธ์ยาวผิดปกติและอาจวนซ้ำ"
+
+    number_pattern = r"\d+(?:[.,]\d+)*|[๐-๙]+"
+
+    def normalize_number(value: str) -> str:
+        thai_digits = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+        normalized = value.translate(thai_digits).replace(",", "")
+        if normalized.endswith(".00"):
+            normalized = normalized[:-3]
+        return normalized
+
+    source_numbers = [normalize_number(value) for value in re.findall(number_pattern, source)]
+    output_numbers = [normalize_number(value) for value in re.findall(number_pattern, candidate)]
+    if "เที่ยง" in source and "เที่ยงคืน" not in source:
+        source_numbers.append("12")
+    if source_numbers != output_numbers:
+        return "ตัวเลขหรือลำดับตัวเลขในผลลัพธ์ไม่ตรงกับต้นฉบับ"
+
+    source_terms = {term for term in PROTECTED_TERMS if term in source}
+    output_terms = {term for term in PROTECTED_TERMS if term in candidate}
+    if source_terms != output_terms:
+        return "คำบอกเวลา/วันที่หรือหน่วยสำคัญเปลี่ยนไปจากต้นฉบับ"
+    return None
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="เรียบเรียงข้อความภาษาไทยด้วยโมเดลที่ fine-tune แล้ว")
+    parser.add_argument("--mode", choices=MODES, default="rewrite")
+    parser.add_argument("--text", help="ข้อความต้นฉบับ (ถ้าไม่ระบุจะถามใน terminal)")
+    parser.add_argument("--max-new-tokens", type=int, default=128)
+    args = parser.parse_args()
+
+    text = (args.text or input("ข้อความต้นฉบับ: ")).strip()
+    if not text:
+        parser.error("กรุณาระบุข้อความด้วย --text หรือพิมพ์ข้อความเมื่อโปรแกรมถาม")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, dtype=torch.bfloat16)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    model.eval()
+
+    messages = [
+        {
+            "role": "system",
+            "content": "คุณเป็นผู้ช่วยเรียบเรียงภาษาไทย ให้เขียนใหม่โดยรักษาข้อมูลเดิมทุกประการ ห้ามเพิ่มเวลา ตัวเลข หรือข้อเท็จจริง และตอบเฉพาะข้อความที่เรียบเรียงแล้ว",
+        },
+        {"role": "user", "content": f"ช่วยเรียบเรียง{MODE_LABELS[args.mode]}: {text}"},
+    ]
+    inputs = tokenizer.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_dict=True,
+        return_tensors="pt",
+    ).to(device)
+    with torch.inference_mode():
+        generated = model.generate(
+            **inputs,
+            max_new_tokens=args.max_new_tokens,
+            do_sample=False,
+            repetition_penalty=1.08,
+            no_repeat_ngram_size=4,
         )
+
+    result = tokenizer.decode(
+        generated[0, inputs["input_ids"].shape[-1] :],
+        skip_special_tokens=True,
+    ).strip().split("\n\n", 1)[0]
+    rejection_reason = validate_output(text, result)
+    print("\nผลลัพธ์:")
+    if rejection_reason:
+        print(f"[ป้องกันการแสดงผลที่อาจผิดความหมาย: {rejection_reason}]")
+        print("ใช้ข้อความต้นฉบับแทน:")
+        print(text)
+    else:
+        print(result)
+
+
+if __name__ == "__main__":
+    main()
