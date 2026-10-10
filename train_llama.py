@@ -54,8 +54,8 @@ def main() -> None:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # แก้ไข: นำ device_map="auto" ออก เพื่อป้องกันไม่ให้ระบบพยายามเรียกใช้การ์ดจอ
-    model = AutoModelForCausalLM.from_pretrained(args.model_name)
+    # โหลดโมเดลลง GPU อัตโนมัติด้วย device_map="auto"
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, device_map="auto")
     
     train_rows = read_jsonl(train_path)
     validation_rows = read_jsonl(validation_path)
@@ -96,10 +96,9 @@ def main() -> None:
         report_to="none",
         seed=args.seed,
         
-        # --- ส่วนที่แก้ไขสำหรับการรันบน CPU ---
-        fp16=False,                  # ปิดการใช้ 16-bit เพราะ CPU ไม่รองรับ
-        use_cpu=True,                # บังคับรันบน CPU 
-        dataloader_pin_memory=False, # ปิดการใช้ pin_memory เพื่อแก้คำเตือน
+        # --- ตั้งค่าสำหรับ GPU ---
+        fp16=True,                    # เปิดใช้ 16-bit precision
+        gradient_checkpointing=True,  # ประหยัด VRAM ป้องกันการ์ดจอแรมเต็ม
     )
     
     trainer = Trainer(
@@ -110,7 +109,7 @@ def main() -> None:
         data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
     )
 
-    print("Starting training on CPU...")
+    print("Starting training on GPU...")
     result = trainer.train()
     trainer.save_model(str(model_dir))
     tokenizer.save_pretrained(model_dir)
