@@ -1,9 +1,9 @@
 {
   "model_path": "artifacts\\model",
-  "test_examples": 486,
+  "test_examples": 20,
   "metrics": {
-    "chrf": 23.47337687403507,
-    "rougeL_f1": 0.06220584221991648
+    "chrf": 16.43150456493221,
+    "rougeL_f1": 0.005263157894736841
   },
   "metric_interpretation": "Lexical overlap with synthetic summarization targets only; these metrics do not measure factual faithfulness, meaning preservation, or style control.",
   "predictions_file": "artifacts\\predictions.jsonl"

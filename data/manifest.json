@@ -1,6 +1,6 @@
 {
   "project": "Thai text rewriting prototype",
-  "created_utc": "2026-10-06T11:13:57.564526+00:00",
+  "created_utc": "2026-10-10T10:26:52.299285+00:00",
   "dataset": {
     "id": "airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k",
     "url": "https://huggingface.co/datasets/airesearch/wangchanx-seed-free-synthetic-instruct-thai-120k",
@@ -22,31 +22,40 @@
     "source_field": "context",
     "target_field": "output",
     "note": "Weakly supervised rewriting pairs; the dataset labels these examples as summarization, not paraphrase or style transfer.",
-    "accepted_rows": 4865,
+    "accepted_rows": 3165,
     "rejected_rows_by_reason": {
       "duplicate_source": 1203,
       "length_ratio_out_of_range": 12550,
       "not_summarization": 96050,
-      "rating_below_threshold": 4230
+      "rating_below_threshold": 4230,
+      "non_thai_letters": 1700
     },
-    "median_target_to_source_character_ratio": 0.8123076923076923
+    "median_target_to_source_character_ratio": 0.8153638814016172,
+    "require_thai_script_only": true,
+    "accepted_before_thai_filter": 4865,
+    "thai_script_policy": "source_text, target_text, and instruction contain no Unicode letters or marks outside Thai block U+0E00-U+0E7F; numbers and punctuation are allowed"
   },
   "split": {
     "seed": 42,
-    "method": "deterministic shuffle, then 80/10/10 train/validation/test",
+    "method": "deterministic shuffle, 80/10/10 split, then Thai-script filter",
     "files": {
       "test.jsonl": {
-        "rows": 486,
-        "sha256": "287f200bedd2aa47350b2e8b529021b90c0af0d4f6d87fdbd2a85370f42f8853"
+        "rows": 323,
+        "sha256": "695be172ab5416a7df683e97affc2f85d67fe520e9659bb67987b3be67a0e962"
       },
       "validation.jsonl": {
-        "rows": 486,
-        "sha256": "410d19713fa84d833608db472aefcea9a748d2745861d163c466f84370bbab9e"
+        "rows": 315,
+        "sha256": "f617360cb0e6ee2407743887039e94dbe95558d9cdacec211d64acd1bfe6d9dd"
       },
       "train.jsonl": {
-        "rows": 3893,
-        "sha256": "569edc41e3d4ea80169135173e731ac322b0b8b038c209324472deb74793380c"
+        "rows": 2527,
+        "sha256": "dfbf92cc57eac4f8efb13a5e4a82d3a0bc7f7d58da2c07c1352eac8cba04d91b"
       }
+    },
+    "rejected_non_thai_rows_by_split": {
+      "test": 163,
+      "validation": 171,
+      "train": 1366
     }
   },
   "known_limitations": [

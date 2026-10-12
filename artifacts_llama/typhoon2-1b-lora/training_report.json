@@ -1,0 +1,24 @@
+{
+  "base_model": "typhoon-ai/llama3.2-typhoon2-1b-instruct",
+  "adapter_path": "artifacts_llama\\typhoon2-1b-lora",
+  "device": "privateuseone:0",
+  "training_method": "LoRA",
+  "training_rows": 2527,
+  "validation_rows": 315,
+  "epochs": 1,
+  "max_seq_length": 256,
+  "batch_size": 1,
+  "gradient_accumulation_steps": 8,
+  "learning_rate": 0.0002,
+  "lora_rank": 2,
+  "dataset_sha256": {
+    "train.jsonl": "dfbf92cc57eac4f8efb13a5e4a82d3a0bc7f7d58da2c07c1352eac8cba04d91b",
+    "validation.jsonl": "f617360cb0e6ee2407743887039e94dbe95558d9cdacec211d64acd1bfe6d9dd"
+  },
+  "train_loss_by_epoch": [
+    5.598606121695744
+  ],
+  "validation_loss": 4.4535078502836685,
+  "loss_scope": "Summary target tokens only; instruction and context tokens are masked.",
+  "note": "Only the LoRA adapter is saved; load it together with the base model."
+}

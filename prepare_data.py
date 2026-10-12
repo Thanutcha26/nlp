@@ -1,6 +1,7 @@
 import hashlib
 import json
 import random
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,14 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def has_non_thai_letters(text: str) -> bool:
+    return any(
+        unicodedata.category(char)[0] in {"L", "M"}
+        and not 0x0E00 <= ord(char) <= 0x0E7F
+        for char in text
+    )
 
 
 def split_records(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -80,7 +89,7 @@ def main() -> None:
             {
                 "source_text": source,
                 "target_text": target,
-                "instruction": row.get("instruction") or "",
+                "instruction": (row.get("instruction") or "").strip(),
                 "rating": rating,
                 "source_index": source_index,
             }
@@ -91,6 +100,20 @@ def main() -> None:
 
     DATA_DIR.mkdir(exist_ok=True)
     splits = split_records(accepted)
+    non_thai_by_split = Counter()
+    for split_name, split_rows in splits.items():
+        thai_rows = []
+        for record in split_rows:
+            if any(
+                has_non_thai_letters(record[field])
+                for field in ("source_text", "target_text", "instruction")
+            ):
+                rejected["non_thai_letters"] += 1
+                non_thai_by_split[split_name] += 1
+            else:
+                thai_rows.append(record)
+        splits[split_name] = thai_rows
+
     output_files: dict[str, dict[str, Any]] = {}
     for split_name, split_rows in splits.items():
         path = DATA_DIR / f"{split_name}.jsonl"
@@ -118,18 +141,26 @@ def main() -> None:
             "task_type": "summarization",
             "minimum_rating": MIN_RATING,
             "target_to_source_character_ratio": [MIN_LENGTH_RATIO, MAX_LENGTH_RATIO],
+            "require_thai_script_only": True,
             "remove_duplicate_sources": True,
             "duplicate_key": "SHA-256 of trimmed source context",
+            "require_thai_script_only": True,
             "source_field": "context",
             "target_field": "output",
             "note": "Weakly supervised rewriting pairs; the dataset labels these examples as summarization, not paraphrase or style transfer.",
-            "accepted_rows": len(accepted),
+            "accepted_before_thai_filter": len(accepted),
+            "accepted_rows": sum(len(rows) for rows in splits.values()),
             "rejected_rows_by_reason": dict(sorted(rejected.items())),
-            "median_target_to_source_character_ratio": median(ratios),
+            "median_target_to_source_character_ratio": median(
+                len(record["target_text"]) / len(record["source_text"])
+                for rows in splits.values()
+                for record in rows
+            ),
         },
         "split": {
             "seed": SEED,
-            "method": "deterministic shuffle, then 80/10/10 train/validation/test",
+            "method": "deterministic shuffle, 80/10/10 split, then Thai-script filter",
+            "rejected_non_thai_rows_by_split": dict(sorted(non_thai_by_split.items())),
             "files": output_files,
         },
         "known_limitations": [

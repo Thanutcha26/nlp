@@ -1,113 +1,141 @@
 import argparse
+import math
 import re
-from pathlib import Path
+from collections import Counter
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-
-ROOT = Path(__file__).resolve().parent
-MODEL_ID = "typhoon-ai/llama3.2-typhoon2-3b-instruct"
-MODES = {
-    "rewrite": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทย โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน ใช้สำนวนที่เป็นธรรมชาติ อ่านลื่นไหล และอย่าสรุปหรือตัดรายละเอียด",
-    "formal": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทยระดับทางการ สุภาพและเป็นธรรมชาติ โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน อย่าสรุปหรือตัดรายละเอียด",
-    "semiformal": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่เป็นภาษาไทยกึ่งทางการที่สุภาพ เป็นธรรมชาติ และอ่านเข้าใจง่าย โดยคงสาระสำคัญและข้อเท็จจริงเดิมให้ครบถ้วน",
-    "concise": "โปรดเรียบเรียงข้อความต่อไปนี้ใหม่ให้กระชับ อ่านลื่นไหล โดยรักษาข้อเท็จจริงและสาระสำคัญไว้ให้ครบ",
-}
-MODE_LABELS = {
-    "rewrite": "ใหม่",
-    "formal": "เป็นภาษาทางการ",
-    "semiformal": "เป็นภาษากึ่งทางการ",
-    "concise": "ให้กระชับ",
-}
-PROTECTED_TERMS = (
-    "พรุ่งนี้", "วันนี้", "เมื่อวาน", "มะรืน", "เที่ยงคืน", "บาท", "เปอร์เซ็นต์",
-)
+from pythainlp.corpus import thai_stopwords
+from pythainlp.tokenize import sent_tokenize, word_tokenize
 
 
-def validate_output(source: str, output: str) -> str | None:
-    candidate = output.strip()
-    if not candidate:
-        return "โมเดลไม่ได้สร้างข้อความ"
-    if any(marker in candidate for marker in ("<extra_id_", "instruction:", "context:", "โปรดเรียบเรียง")):
-        return "ผลลัพธ์มี token พิเศษหรือข้อความคำสั่งปะปน"
-    if len(candidate) > max(len(source) * 2, len(source) + 120):
-        return "ผลลัพธ์ยาวผิดปกติและอาจวนซ้ำ"
+def summarize_dated_list(text: str) -> str | None:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    entries = [
+        line
+        for line in lines
+        if re.search(r"\([^)]*(?:พ\.ศ\.|\d{4}|[๐-๙]{4})", line)
+        and re.search(r"(?:–|—|-|ถึง)", line)
+    ]
+    if len(entries) < 4 or len(entries) / max(1, len(lines)) < 0.5:
+        return None
+
+    years = re.findall(r"(?<!\d)(?:\d{4}|[๐-๙]{4})(?!\d)", text)
+    thai_digits = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
+    normalized_years = [year.translate(thai_digits) for year in years]
+    if not normalized_years:
+        return "เนื้อหานี้รวบรวมรายชื่อบุคคลพร้อมช่วงเวลาของแต่ละรายการ"
+
+    end = "ปัจจุบัน" if "ปัจจุบัน" in text else f"พ.ศ. {normalized_years[-1]}"
+    return f"เนื้อหานี้รวบรวมรายชื่อบุคคลพร้อมช่วงเวลาของแต่ละรายการ ตั้งแต่ พ.ศ. {normalized_years[0]} ถึง {end}"
+
+
+def summarize_extractive(text: str, max_sentences: int, max_summary_chars: int) -> str:
+    sentences = [sentence.strip() for sentence in sent_tokenize(text) if sentence.strip()]
+    if len(sentences) <= 1:
+        return text.strip()
+
+    stopwords = thai_stopwords()
+    sentence_tokens = []
+    for sentence in sentences:
+        tokens = [
+            token.lower()
+            for token in word_tokenize(sentence, keep_whitespace=False)
+            if len(token) > 1
+            and any(char.isalnum() for char in token)
+            and token not in stopwords
+        ]
+        sentence_tokens.append(tokens)
+
+    document_frequency = Counter(
+        token for tokens in sentence_tokens for token in set(tokens)
+    )
+    term_frequency = Counter(token for tokens in sentence_tokens for token in tokens)
+    sentence_scores = []
+    sentence_count = len(sentences)
+    for index, tokens in enumerate(sentence_tokens):
+        if not tokens:
+            score = 0.0
+        else:
+            score = sum(
+                (1 + math.log(term_frequency[token]))
+                * (1 + math.log((sentence_count + 1) / (document_frequency[token] + 1)))
+                for token in set(tokens)
+            ) / math.sqrt(len(tokens))
+        sentence_scores.append(score * (1 + 0.12 / (index + 1)))
+
+    summary_budget = min(max_summary_chars, max(160, int(len(text) * 0.38)))
+    ranked_indexes = sorted(range(sentence_count), key=lambda index: sentence_scores[index], reverse=True)
+    selected_indexes = []
+    selected_tokens = []
+    selected_length = 0
+
+    for index in ranked_indexes:
+        tokens = set(sentence_tokens[index])
+        if tokens and any(
+            len(tokens & existing) / max(1, len(tokens | existing)) >= 0.72
+            for existing in selected_tokens
+        ):
+            continue
+
+        sentence_length = len(sentences[index])
+        if selected_indexes and selected_length + sentence_length + 1 > summary_budget:
+            continue
+
+        selected_indexes.append(index)
+        selected_tokens.append(tokens)
+        selected_length += sentence_length + 1
+        if len(selected_indexes) >= max_sentences:
+            break
+
+    if not selected_indexes:
+        selected_indexes = [max(range(sentence_count), key=lambda index: sentence_scores[index])]
+    return " ".join(sentences[index] for index in sorted(selected_indexes))
+
+
+def validate_summary(source: str, summary: str) -> str | None:
+    if not summary:
+        return "โมเดลไม่ได้สร้างบทสรุป"
+
+    source_has_thai = any(0x0E00 <= ord(char) <= 0x0E7F for char in source)
+    if source_has_thai and any(
+        char.isalpha() and not 0x0E00 <= ord(char) <= 0x0E7F
+        for char in summary
+    ):
+        return "ผลลัพธ์มีอักษรจากภาษาอื่นปะปน"
 
     number_pattern = r"\d+(?:[.,]\d+)*|[๐-๙]+"
+    thai_digits = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 
-    def normalize_number(value: str) -> str:
-        thai_digits = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
-        normalized = value.translate(thai_digits).replace(",", "")
-        if normalized.endswith(".00"):
-            normalized = normalized[:-3]
-        return normalized
+    def numbers(text: str) -> list[str]:
+        return [
+            value.translate(thai_digits).replace(",", "")
+            for value in re.findall(number_pattern, text)
+        ]
 
-    source_numbers = [normalize_number(value) for value in re.findall(number_pattern, source)]
-    output_numbers = [normalize_number(value) for value in re.findall(number_pattern, candidate)]
-    if "เที่ยง" in source and "เที่ยงคืน" not in source:
-        source_numbers.append("12")
-    if source_numbers != output_numbers:
-        return "ตัวเลขหรือลำดับตัวเลขในผลลัพธ์ไม่ตรงกับต้นฉบับ"
-
-    source_terms = {term for term in PROTECTED_TERMS if term in source}
-    output_terms = {term for term in PROTECTED_TERMS if term in candidate}
-    if source_terms != output_terms:
-        return "คำบอกเวลา/วันที่หรือหน่วยสำคัญเปลี่ยนไปจากต้นฉบับ"
+    if numbers(source) != numbers(summary):
+        return "ตัวเลขหรือวันที่ในบทสรุปไม่ตรงกับต้นฉบับ"
     return None
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="เรียบเรียงข้อความภาษาไทยด้วยโมเดลที่ fine-tune แล้ว")
-    parser.add_argument("--mode", choices=MODES, default="rewrite")
-    parser.add_argument("--text", help="ข้อความต้นฉบับ (ถ้าไม่ระบุจะถามใน terminal)")
-    parser.add_argument("--max-new-tokens", type=int, default=128)
+    parser = argparse.ArgumentParser(description="ย่อบทความภาษาไทยโดยคัดประโยคสำคัญจากต้นฉบับ")
+    parser.add_argument("--text", help="เนื้อหาที่ต้องการสรุป (ถ้าไม่ระบุจะถามใน terminal)")
+    parser.add_argument("--max-sentences", type=int, default=5)
+    parser.add_argument("--max-summary-chars", type=int, default=1200)
     args = parser.parse_args()
 
-    text = (args.text or input("ข้อความต้นฉบับ: ")).strip()
+    text = (args.text or input("เนื้อหาที่ต้องการสรุป: ")).strip()
     if not text:
-        parser.error("กรุณาระบุข้อความด้วย --text หรือพิมพ์ข้อความเมื่อโปรแกรมถาม")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, dtype=torch.bfloat16)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    model.eval()
+        parser.error("กรุณาระบุเนื้อหาด้วย --text หรือพิมพ์เมื่อโปรแกรมถาม")
+    if args.max_sentences < 1 or args.max_summary_chars < 1:
+        parser.error("--max-sentences และ --max-summary-chars ต้องมากกว่า 0")
 
-    messages = [
-        {
-            "role": "system",
-            "content": "คุณเป็นผู้ช่วยเรียบเรียงภาษาไทย ให้เขียนใหม่โดยรักษาข้อมูลเดิมทุกประการ ห้ามเพิ่มเวลา ตัวเลข หรือข้อเท็จจริง และตอบเฉพาะข้อความที่เรียบเรียงแล้ว",
-        },
-        {"role": "user", "content": f"ช่วยเรียบเรียง{MODE_LABELS[args.mode]}: {text}"},
-    ]
-    inputs = tokenizer.apply_chat_template(
-        messages,
-        tokenize=True,
-        add_generation_prompt=True,
-        return_dict=True,
-        return_tensors="pt",
-    ).to(device)
-    with torch.inference_mode():
-        generated = model.generate(
-            **inputs,
-            max_new_tokens=args.max_new_tokens,
-            do_sample=False,
-            repetition_penalty=1.08,
-            no_repeat_ngram_size=4,
-        )
-
-    result = tokenizer.decode(
-        generated[0, inputs["input_ids"].shape[-1] :],
-        skip_special_tokens=True,
-    ).strip().split("\n\n", 1)[0]
-    rejection_reason = validate_output(text, result)
-    print("\nผลลัพธ์:")
-    if rejection_reason:
-        print(f"[ป้องกันการแสดงผลที่อาจผิดความหมาย: {rejection_reason}]")
-        print("ใช้ข้อความต้นฉบับแทน:")
-        print(text)
-    else:
-        print(result)
+    summary = summarize_dated_list(text) or summarize_extractive(
+        text,
+        args.max_sentences,
+        args.max_summary_chars,
+    )
+    print("\nสรุป:")
+    print(summary)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+{
+  "base_model": "typhoon-ai/llama3.2-typhoon2-1b-instruct",
+  "adapter_path": "C:\\Users\\ADMIN\\nlp\\artifacts_llama\\typhoon2-1b-lora",
+  "test_examples": 323,
+  "test_sha256": "695be172ab5416a7df683e97affc2f85d67fe520e9659bb67987b3be67a0e962",
+  "metrics": {
+    "chrf": 23.71044331304012,
+    "rougeL_f1": 0.09319851373098519
+  },
+  "metric_interpretation": "Lexical overlap with synthetic summarization targets only; these metrics do not measure factual faithfulness, meaning preservation, or style control.",
+  "predictions_file": "C:\\Users\\ADMIN\\nlp\\artifacts_llama\\typhoon2-1b-lora\\predictions.jsonl"
+}
